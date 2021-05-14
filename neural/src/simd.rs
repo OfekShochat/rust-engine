@@ -34,10 +34,14 @@ impl Layer {
 
   fn reconstruct_biases(lw: usize, b: Vec<f64>) -> Vec<Vec<f64>> {
     let mut new_biases: Vec<Vec<f64>> = [].to_vec();
-    for _ in 0..b.len() {
+    for i in 0..b.len() {
       let mut temp: Vec<f64> = [].to_vec();
-      for i in 0..lw {
-        temp.push(b[i]);
+      for j in 0..lw {
+        if j == 0 {
+          temp.push(b[i]);
+        } else {
+          temp.push(0.0);
+        }
       }
       new_biases.push(temp);
     }
@@ -68,7 +72,7 @@ impl Layer {
   pub fn forward(&mut self, x: Vec<f64>) -> Vec<f64> {
     let inputs = self.split_more_and_set(Layer::reconstruct_inputs(self.weights.len(), x), 0.0);
     let mut out: Vec<f64> = [].to_vec();
-    //assert!(x.len() == self.biases.len());
+    assert!(self.weights.len() == self.biases.len());
     for i in 0..self.weights.len() {
       for j in 0..self.weights[i].len() {
         unsafe {
