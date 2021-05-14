@@ -1,14 +1,41 @@
 extern crate npy;
-
 use std::io::Read;
-use npy::NpyData;
 
-const fn load(const path: str) {
+pub fn load() -> (Vec<Vec<f64>>, Vec<f64>) {
   let mut buf = vec![];
-  unsafe {
-    std::fs::File::open(path).unwrap()
-      .read_to_end(&mut buf).unwrap();
+  let mut biases = vec![];
+  let mut weights = vec![];
+  std::fs::File::open(env!("nnPath")).unwrap()
+    .read_to_end(&mut buf).unwrap();
+  let data: npy::NpyData<f64> = npy::NpyData::from_bytes(&buf).unwrap();
+  let mut a: i8 = 0;
+  let mut weights_per_neuron = 0.0;
+  let mut temp = vec![];
+  let mut is_biases: bool = false;
+  for i in data {
+    if a < 1 {
+      weights_per_neuron = i;
+      a += 1;
+      continue;
+    }
+    if i == 8.36 {
+      is_biases = true;
+      continue;
+    }
+    if !is_biases {
+      if a-1 < weights_per_neuron as i8 {
+        temp.push(i);
+      } else {
+        weights.push(temp.clone());
+        temp.clear();
+      }
+    } else {
+      if i == 8.366 {
+        break;
+      }
+      biases.push(i);
+    }
+    a+=1;
   }
-  let data: NpyData<f64> = NpyData::from_bytes(&buf).unwrap();
-  return data;
+  return (weights, biases);
 }
