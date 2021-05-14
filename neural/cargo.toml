@@ -1,0 +1,8 @@
+[package]
+authors = ["OfekShochat o@shoch.at"]
+name = "rnn"
+version = "0.0.1"
+include = ["*"]
+
+[dependencies]
+npy = "*"

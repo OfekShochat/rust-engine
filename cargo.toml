@@ -1,0 +1,9 @@
+[package]
+authors = ["OfekShochat o@shoch.at"]
+name = "ce"
+version = "0.0.1"
+include = ["src/**/*"]
+
+[dependencies]
+chess = "3.2.0"
+rand = "*"
