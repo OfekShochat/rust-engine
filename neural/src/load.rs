@@ -20,12 +20,14 @@ pub fn load() -> (Vec<Vec<f64>>, Vec<f64>) {
     }
     if i == 8.36 {
       is_biases = true;
+      a += 1;
       continue;
     }
     if !is_biases {
-      if a-1 < weights_per_neuron as i8 {
+      if !((a-1) % (weights_per_neuron as i8) == (weights_per_neuron as i8 - 1)) {
         temp.push(i);
       } else {
+        temp.push(i);
         weights.push(temp.clone());
         temp.clear();
       }
