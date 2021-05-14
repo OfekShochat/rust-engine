@@ -13,7 +13,7 @@ impl Layer {
     return Self { weights: Vec::<Vec<__m256d>>::new(), biases: Vec::<Vec<__m256d>>::new() };
   }
   pub fn load_parameters(&mut self, w: Vec<Vec<f64>>, b: Vec<f64>) {
-    let s = w[0].len();
+    let s = w.len();
     self.weights = self.split_more_and_set(w, 0.0);
     self.biases = self.split_more_and_set(Layer::reconstruct_biases(s, b), 0.0);
   }
@@ -95,7 +95,7 @@ impl Layer {
     return splitted;
   }
 
-  fn split_and_set(&mut self, a: Vec<f64>, left_over: f64) -> Vec<__m256d> {
+  /*fn split_and_set(&mut self, a: Vec<f64>, left_over: f64) -> Vec<__m256d> {
     // splitting weights to groups of 4
     let mut splitted = Vec::new();
     let mut temp = Vec::new();
@@ -118,4 +118,5 @@ impl Layer {
     }
     return splitted;
   }
+  */
 }
