@@ -14,7 +14,7 @@ impl Layer {
   }
   pub fn load_parameters(&mut self, w: Vec<Vec<f64>>, b: Vec<f64>) {
     let s = w[0].len();
-    self.weights = self.split_more_and_set(w, 1.0);
+    self.weights = self.split_more_and_set(w, 0.0);
     self.biases = self.split_more_and_set(Layer::reconstruct_biases(s, b), 0.0);
   }
 
@@ -30,6 +30,15 @@ impl Layer {
     return new_biases;
   }
 
+  fn reconstruct_inputs(lw: usize, mut x: Vec<f64>) -> Vec<Vec<f64>> {
+    let mut r: Vec<Vec<f64>> = [].to_vec();
+    for _ in 0..lw {
+      let mx = &mut x;
+      r.push(mx.to_vec());
+    }
+    return r;
+  }
+
   #[allow(non_snake_case)]
   unsafe fn vector_term(
     xs: __m256d,
@@ -43,13 +52,13 @@ impl Layer {
   }
 
   pub fn forward(&mut self, x: Vec<f64>) -> Vec<f64> {
-    let x = self.split_and_set(x, 0.0);
+    let inputs = self.split_more_and_set(Layer::reconstruct_inputs(self.weights.len(), x), 0.0);
     let mut out: Vec<f64> = [].to_vec();
     //assert!(x.len() == self.biases.len());
     for i in 0..self.weights.len() {
       for j in 0..self.weights[i].len() {
         unsafe {
-          let r = Layer::vector_term(x[i], self.weights[i][j], self.biases[i][j]);
+          let r = Layer::vector_term(inputs[i][j], self.weights[i][j], self.biases[i][j]);
           out.push(r.0 + r.1 + r.2 + r.3);
         }
       }

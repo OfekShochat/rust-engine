@@ -10,6 +10,6 @@ fn main() {
   b.push(0.2);
   b.push(0.5);
   l.load_parameters(w, b);
-  let test: Vec<f64> = [0.1, 0.4, 0.4, 0.4, 0.1, 0.4, 0.5, 0.3].to_vec();
+  let test: Vec<f64> = [0.1, 0.4, 0.4].to_vec();
   println!("{}", l.forward(test)[0]);
 }
