@@ -18,6 +18,20 @@ impl Layer {
     self.biases = self.split_more_and_set(Layer::reconstruct_biases(s, b), 0.0);
   }
 
+  pub fn clamp(out: Vec<f64>, min: f64, max: f64) -> Vec<f64> {
+    let mut o: Vec<f64> = [].to_vec();
+    for i in 0..out.len() {
+      if out[i] > max {
+        o.push(max);
+      } else if out[i] < min {
+        o.push(min);
+      } else {
+        o.push(out[i]);
+      }
+    }
+    return o;
+  }
+
   fn reconstruct_biases(lw: usize, b: Vec<f64>) -> Vec<Vec<f64>> {
     let mut new_biases: Vec<Vec<f64>> = [].to_vec();
     for _ in 0..b.len() {
