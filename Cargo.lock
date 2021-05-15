@@ -53,6 +53,7 @@ name = "ce"
 version = "0.0.1"
 dependencies = [
  "chess",
+ "permutation",
  "rand 0.8.3",
 ]
 
@@ -140,6 +141,12 @@ name = "object"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a5b3dd1c072ee7963717671d1ca129f1048fda25edea6b752bfc71ac8854170"
+
+[[package]]
+name = "permutation"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9978962f8a4b158e97447a6d09d2d75e206d2994eff056c894019f362b27142"
 
 [[package]]
 name = "ppv-lite86"
