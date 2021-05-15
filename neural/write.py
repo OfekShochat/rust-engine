@@ -2,9 +2,9 @@ import numpy as np
 
 # the protocol is:
 # (how_many_weights_per_neuron, flattened_weights, 8.36, biases, 8.366) for each layer
-weights = np.random.random(size=(25))/4
+weights = np.random.random(size=(25))
 weights = weights.tolist()
-biases = np.random.random(size=(5))/4
+biases = np.random.random(size=(5))
 biases = biases.tolist()
 
 a = np.array([5]).flatten()

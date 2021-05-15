@@ -1,9 +1,15 @@
 mod search;
 extern crate chess;
 use std::str::FromStr;
+use std::io::stdin;
 
+#[allow(unused_must_use)]
 fn main() {
-  let board = chess::Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-  let result: (i16, chess::ChessMove) = search::iterative_deepening(board, 5, -10000, 5000);
-  println!("eval: {}, move: {}", result.0, result.1);
+  loop {
+    let mut s:String = String::new();
+    stdin().read_line(&mut s);
+    let board: chess::Board = chess::Board::from_str(&s.to_string()).unwrap();
+    let result: (i32, chess::ChessMove) = search::iterative_deepening(board, 5, -10000, 10000);
+    println!("bestmove {}", result.1);
+  }
 }

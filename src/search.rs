@@ -2,28 +2,32 @@ extern crate chess;
 extern crate rand;
 use std::time::SystemTime;
 
-pub fn iterative_deepening(board: chess::Board, depth: i8, alpha: i16, beta: i16) -> (i16, chess::ChessMove) {
-  let mut result: (i16, chess::ChessMove) = (0, chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None));
+#[allow(non_upper_case_globals)]
+static mut nodes: i32 = 0;
+
+pub fn iterative_deepening(board: chess::Board, depth: i8, alpha: i32, beta: i32) -> (i32, chess::ChessMove) {
+  let mut result: (i32, chess::ChessMove) = (0, chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None));
+  let start = SystemTime::now();
   for d in 1..depth+1 {
-    let start = SystemTime::now();
     result = search(board, d, alpha, beta);
     let duration: u128 = start.elapsed().unwrap().as_millis();
-    println!("info depth {} score cp {} nodes {} nps {} time {} pv {}", d, result.0, 1, 1, duration, result.1);
+    unsafe {
+      println!("info depth {} score cp {} nodes {} nps {} time {} pv {}", d, result.0, nodes, (nodes as f32 /((duration as f32 /1000 as f32)) as f32) as i16, duration, result.1);
+    }
   }
 
   return result;
 }
 
-pub fn search(board: chess::Board, depth: i8, mut alpha: i16, beta: i16) -> (i16, chess::ChessMove) {
+fn search(board: chess::Board, depth: i8, mut alpha: i32, beta: i32) -> (i32, chess::ChessMove) {
   let mut iterable = chess::MoveGen::new_legal(&board);
-  //let targets: &chess::BitBoard = board.color_combined(!board.side_to_move());
+
   let color = if board.side_to_move() == chess::Color::Black {-1} else {1};  
   let mut best: chess::ChessMove = chess::ChessMove::default();
-  iterable.set_iterator_mask(!chess::EMPTY);
   for m in &mut iterable {
     let mut result: chess::Board = board.clone();
     board.make_move(m, &mut result);
-    let r: i16 = -alpha_beta(result, depth - 1, alpha, beta, -color);
+    let r: i32 = -alpha_beta(result, depth - 1, -beta, -alpha, -color);
     if r >= beta {
       return (beta, m);
     }
@@ -35,57 +39,65 @@ pub fn search(board: chess::Board, depth: i8, mut alpha: i16, beta: i16) -> (i16
   return (alpha, best);
 }
 
-fn alpha_beta(board: chess::Board, depth: i8, mut alpha: i16, beta: i16, color: i8) -> i16 {
+fn alpha_beta(board: chess::Board, depth: i8, mut alpha: i32, beta: i32, color: i8) -> i32 {
   let mut iterable = chess::MoveGen::new_legal(&board);
   if depth == 0 || iterable.len() == 0 {
     /*if board.to_string().contains("r2qk2r/pb4pp/1n2Pb2/2B2Q2/p1p5/2P5/2B2PPP/RN2R1K1 w") && eval(board) == -10000 {
       println!("color: {}", color);
     }*/
-    if board.side_to_move() == chess::Color::White {
+    /*if board.side_to_move() == chess::Color::White {
       assert!(color == 1);
     } else {
-      assert!(color == -1)
+      assert!(color == -1);
+    }*/
+    unsafe {
+      nodes += 1;
     }
-    return eval(board) * color as i16;
+    return eval(board) * color as i32;
   }
   
   //let targets: &chess::BitBoard = board.color_combined(!board.side_to_move());
   iterable.set_iterator_mask(!chess::EMPTY);
+  let mut value: i32 = -10000;
   for m in &mut iterable {
+    unsafe {
+      nodes += 1;
+    }
     let mut result: chess::Board = board.clone();
     board.make_move(m, &mut result);
-    let r = -alpha_beta(result, depth - 1, alpha, beta, -color);
+    let r: i32 = -alpha_beta(result, depth - 1, -beta, -alpha, -color);
+    if r > value {
+      value = r;
+    }
+    if value > alpha {
+      alpha = value;
+    }
     if r >= beta {
       return beta;
     }
-    if r > alpha {
-      alpha = r;
-    }
   }
-  return alpha;
+  return value;
 }
 
-fn eval(board: chess::Board) -> i16 {
+fn eval(board: chess::Board) -> i32 {
   let s: chess::BoardStatus = board.status();
   if !(s == chess::BoardStatus::Ongoing) {
     if s == chess::BoardStatus::Checkmate {
       return -10000;
     }
-    if s == chess::BoardStatus::Stalemate {
-      return 0;
-    }
+    return 0;
   }
 
   let eval_board = board.clone();
   // mobility
-  let currmobility = chess::MoveGen::new_legal(&eval_board).len() as i16;
+  let currmobility = chess::MoveGen::new_legal(&eval_board).len() as i32;
   eval_board.null_move();
-  let theirmobility = chess::MoveGen::new_legal(&eval_board).len() as i16;
+  let theirmobility = chess::MoveGen::new_legal(&eval_board).len() as i32;
   eval_board.null_move();
-  let mobility_score: i16 = currmobility - theirmobility;
+  let mobility_score: i32 = currmobility - theirmobility;
 
   // material
-  let mut material: i16 = 0;
+  let mut material: i32 = 0;
   let b: String = board.to_string();
   for i in b.chars() {
     match i {
@@ -106,7 +118,7 @@ fn eval(board: chess::Board) -> i16 {
   }
 
   // castling
-  let mut castling_score: i16 = 0;
+  let mut castling_score: i32 = 0;
   if board.castle_rights(chess::Color::White) == chess::CastleRights::Both {
     castling_score += 10;
   } else if board.castle_rights(chess::Color::White) == chess::CastleRights::KingSide || board.castle_rights(chess::Color::White) == chess::CastleRights::QueenSide {
@@ -118,8 +130,6 @@ fn eval(board: chess::Board) -> i16 {
   } else if board.castle_rights(chess::Color::Black) == chess::CastleRights::KingSide || board.castle_rights(chess::Color::Black) == chess::CastleRights::QueenSide {
     castling_score -= 5;
   }
-
-
   return material + mobility_score + castling_score;
 }
 
