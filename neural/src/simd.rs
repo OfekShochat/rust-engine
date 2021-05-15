@@ -74,18 +74,20 @@ impl Layer {
     let mut out: Vec<f64> = [].to_vec();
     assert!(self.weights.len() == self.biases.len());
     for i in 0..self.weights.len() {
+      let mut neuron_out: f64 = 0.0;
       for j in 0..self.weights[i].len() {
         unsafe {
           let r = Layer::vector_term(inputs[i][j], self.weights[i][j], self.biases[i][j]);
-          out.push(r.0 + r.1 + r.2 + r.3);
+          neuron_out += r.0 + r.1 + r.2 + r.3;
         }
       }
+      out.push(neuron_out);
     }
     return out;
   }
 
   fn split_more_and_set(&mut self, a: Vec<Vec<f64>>, left_over: f64) -> Vec<Vec<__m256d>> {
-    // splitting weights to groups of 4
+    // splitting weights to groups of 4 for simd calculation
     let mut splitted = Vec::new();
     
     for i in 0..a.len() {
