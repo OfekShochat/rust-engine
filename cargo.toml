@@ -6,5 +6,3 @@ include = ["src/**/*"]
 
 [dependencies]
 chess = "3.2.0"
-rand = "*"
-permutation = "*"
