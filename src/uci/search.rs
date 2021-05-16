@@ -1,5 +1,5 @@
 extern crate chess;
-use std::time::SystemTime;
+use std::{time::SystemTime, vec};
 use std::collections::HashMap;
 pub struct Search {
   nodes: i32,
@@ -56,17 +56,17 @@ struct TtEntry {
 }
 
 struct HistoryHeuristics {
-  counter_moves: Vec<Vec<chess::ChessMove>>,
+  counter_moves: Vec<Vec<i32>>,
   killers:       Vec<Vec<chess::ChessMove>>
 }
 
 impl Search {
   pub fn new() -> Self {
     // setup counter_moves heuristic table
-    let mut cm: Vec<Vec<chess::ChessMove>> = vec![];
+    let mut cm: Vec<Vec<i32>> = vec![];
     let mut ks: Vec<Vec<chess::ChessMove>> = vec![];
     for _ in 0..64 {
-      cm.push([chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None); 64].to_vec());
+      cm.push([1; 64].to_vec());
       ks.push([chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None); 64].to_vec());
     }
 
@@ -142,17 +142,14 @@ fn quiesce(&mut self, board: chess::Board, mut alpha: i32, beta: i32, color: i8,
       alpha = value;
     }
     if r >= beta {
-      let mut temp: Vec<Vec<chess::ChessMove>> = self.history.counter_moves.clone();
-      temp[m.get_source().to_index()][m.get_dest().to_index()] = m.clone();
-      self.history.counter_moves = temp;
       return value;
     }
   }
   return value;
 }
 
-fn score_killers(&mut self, board: chess::Board) -> Vec<i16> {
-  let mut scores: Vec<i16> = vec![];
+fn score_killers(&mut self, board: chess::Board) -> Vec<i32> {
+  let mut scores: Vec<i32> = vec![];
   let mut iterable = chess::MoveGen::new_legal(&board);
   iterable.set_iterator_mask(!chess::EMPTY);
   for m in &mut iterable {
@@ -171,9 +168,24 @@ fn score_killers(&mut self, board: chess::Board) -> Vec<i16> {
   return scores;
 }
 
+fn score_counters(&mut self, board: chess::Board) -> Vec<i32> {
+  let mut iterable = chess::MoveGen::new_legal(&board);
+  iterable.set_iterator_mask(!chess::EMPTY);
+  let mut scores = vec![];
+  for m in iterable {
+    scores.push(self.history.counter_moves[m.get_source().to_index()][m.get_dest().to_index()]);
+  }
+  return scores;
+}
+
 fn order(&mut self, board: chess::Board) -> std::vec::IntoIter<chess::ChessMove> {
   // sum all scores and then order with it.
-  let mut scores: Vec<i16> = self.score_killers(board);
+  let mut scores = vec![];
+  let ks = self.score_killers(board);
+  let cs = self.score_counters(board);
+  for i in 0..cs.len() {
+    scores.push(cs[i] + ks[i]);
+  }
   let mut iterable = chess::MoveGen::new_legal(&board);
   iterable.set_iterator_mask(!chess::EMPTY);
   let mut moves: Vec<chess::ChessMove> = [].to_vec();
@@ -233,6 +245,9 @@ fn alpha_beta(&mut self, board: chess::Board, curr_depth: i32, max_depth: i32, m
     board.make_move(m, &mut result);
     r = -self.alpha_beta(result, curr_depth + 1, max_depth, -beta, -alpha, -color, stopper, eval);
     //}
+    if curr_depth == 0 {
+      self.history.counter_moves[m.get_source().to_index()][m.get_dest().to_index()] = r;
+    }
     if r > value {
       value = r;
     }
