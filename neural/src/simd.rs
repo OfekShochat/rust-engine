@@ -3,6 +3,18 @@ use std::{f64, mem};
 #[warn(non_snake_case)]
 use std::arch::x86_64::*;
 
+pub struct Network {
+  hidden1: Layer,
+  hidden2: Layer,
+  output:  Layer
+}
+
+impl Network {
+  pub fn new() -> Self {
+    return Self { hidden1: Layer::new(), hidden2: Layer::new(), output: Layer::new() }
+  }
+}
+
 pub struct Layer {
   weights: Vec<Vec<__m256d>>,
   biases: Vec<Vec<__m256d>>

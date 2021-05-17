@@ -1,13 +1,16 @@
 extern crate chess;
+extern crate num_cpus;
 use std::{time::SystemTime, vec};
 use std::collections::HashMap;
+use std::thread;
 pub struct Search {
   nodes: i32,
   tt   : HashMap<i32, TtEntry>,
   history
        : HistoryHeuristics,
   //thread_pool: rayon::ThreadPoolBuilder
-  pruned: i32
+  pruned: i32,
+  threads: Vec<SearchThread>
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -55,12 +58,55 @@ struct TtEntry {
   eval: i32
 }
 
+#[derive(Clone)]
 struct HistoryHeuristics {
   counter_moves: Vec<Vec<i32>>,
   killers:       Vec<Vec<chess::ChessMove>>
 }
 
 impl Search {
+  pub fn new() -> Self {
+    let mut cm: Vec<Vec<i32>> = vec![];
+    let mut ks: Vec<Vec<chess::ChessMove>> = vec![];
+    for _ in 0..64 {
+      cm.push([1; 64].to_vec());
+      ks.push([chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None); 64].to_vec());
+    }
+
+    let mut ts = vec![];
+    for _ in 0..num_cpus::get() {
+      let new = SearchThread::new();
+      ts.push(new);
+    }
+    return Self { nodes: 0, tt: HashMap::<i32, TtEntry>::new(), history: HistoryHeuristics {counter_moves: cm, killers: ks }, pruned: 0, threads: ts };
+  }
+
+  pub fn search_pos(&mut self, board: chess::Board, alpha: i32, beta: i32, stopper: &Stopper) -> (i32, chess::ChessMove) {
+    let mut result: (i32, chess::ChessMove) = (0, chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None));
+    let start = SystemTime::now();
+    
+    self.nodes = 0;
+    let slice = &self.threads[..];
+    let mut active_threads = vec![];
+    for mut t in slice.iter().cloned() {
+      let h: thread::JoinHandle<(i32, chess::ChessMove)> = thread::spawn(move || {t.iterative_deepening(board, alpha, beta)});
+      active_threads.push(h);
+    }
+    for i in active_threads {
+      result = i.join().unwrap();
+    }
+    return result;
+  }
+}
+#[derive(Clone)]
+struct SearchThread {
+  nodes: i32,
+  history
+       : HistoryHeuristics,
+  pruned: i32
+}
+
+impl SearchThread {
   pub fn new() -> Self {
     // setup counter_moves heuristic table
     let mut cm: Vec<Vec<i32>> = vec![];
@@ -70,34 +116,28 @@ impl Search {
       ks.push([chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None); 64].to_vec());
     }
 
-    return Self { nodes: 0, tt: HashMap::new(), history: HistoryHeuristics { counter_moves: cm, killers: ks }, pruned: 0 };
+    return Self { nodes: 0, history: HistoryHeuristics { counter_moves: cm, killers: ks }, pruned: 0 };
   }
 
-pub fn iterative_deepening(&mut self, board: chess::Board, alpha: i32, beta: i32, stopper: Stopper) -> (i32, chess::ChessMove) {
+pub fn iterative_deepening(&mut self, board: chess::Board, alpha: i32, beta: i32, /*stopper: &Stopper*/) -> (i32, chess::ChessMove) {
   let mut result: (i32, chess::ChessMove) = (0, chess::ChessMove::new(chess::Square::A1, chess::Square::A1, None));
   let start = SystemTime::now();
-  for d in 2..stopper.depth+1 {
-    result = self.search(board, d as i32, alpha, beta, stopper);
-    let duration: u128 = start.elapsed().unwrap().as_millis();
-    println!("info depth {} score cp {} nodes {} pruned {} nps {} time {} pv {}", d, result.0, self.nodes, self.pruned, (self.nodes as f32 /((duration as f32 /1000 as f32)) as f32) as i32, duration, result.1);
+  for d in 2..5 {
+    result = self.search(board, d as i32, alpha, beta, /*stopper*/);
   }
   self.nodes = 0;
 
   return result;
 }
 
-fn search(&mut self, board: chess::Board, depth: i32, mut alpha: i32, beta: i32, stopper: Stopper) -> (i32, chess::ChessMove) {
+fn search(&mut self, board: chess::Board, depth: i32, mut alpha: i32, beta: i32, /*stopper: &Stopper*/) -> (i32, chess::ChessMove) {
   let mut iterable = self.order(board);
   let color = if board.side_to_move() == chess::Color::Black {-1} else {1};  
   let mut best: chess::ChessMove = chess::ChessMove::default();
   for m in &mut iterable {
-    if stopper.should_stop {
-      break;
-    }
     let mut result: chess::Board = board.clone();
     board.make_move(m, &mut result);
-    let r: i32 = -self.alpha_beta(result, 0, depth, -beta, -alpha, -color, stopper, 0);
-    //println!("{} {}", m, r);
+    let r: i32 = -self.alpha_beta(result, 0, depth, -beta, -alpha, -color, /*stopper,*/ 0);
     if r >= beta {
       return (beta, m);
     }
@@ -205,12 +245,7 @@ fn order(&mut self, board: chess::Board) -> std::vec::IntoIter<chess::ChessMove>
   return moves.into_iter();
 }
 
-fn add_to_tt(&mut self, pos: chess::Board, entry: TtEntry) {
-  let h: i32 = pos.get_hash() as i32;
-  self.tt.insert(h, entry);
-}
-
-fn alpha_beta(&mut self, board: chess::Board, curr_depth: i32, max_depth: i32, mut alpha: i32, beta: i32, color: i8, stopper: Stopper, previous_static_eval: i32) -> i32 {
+fn alpha_beta(&mut self, board: chess::Board, curr_depth: i32, max_depth: i32, mut alpha: i32, beta: i32, color: i8, /*stopper: &Stopper,*/ previous_static_eval: i32) -> i32 {
   let mut iterable = self.order(board);
   if curr_depth == max_depth || iterable.len() == 0 {
     self.nodes += 1;
@@ -231,9 +266,6 @@ fn alpha_beta(&mut self, board: chess::Board, curr_depth: i32, max_depth: i32, m
   }
   let mut value: i32 = -10000;
   for m in &mut iterable {
-    if stopper.should_stop {
-      break;
-    }
     self.nodes += 1;
     let r: i32;
     let mut result: chess::Board = board.clone();
@@ -243,7 +275,7 @@ fn alpha_beta(&mut self, board: chess::Board, curr_depth: i32, max_depth: i32, m
     //} else {
     //  self.searched += 1;
     board.make_move(m, &mut result);
-    r = -self.alpha_beta(result, curr_depth + 1, max_depth, -beta, -alpha, -color, stopper, eval);
+    r = -self.alpha_beta(result, curr_depth + 1, max_depth, -beta, -alpha, -color, /*stopper,*/ eval);
     //}
     if curr_depth == 0 {
       self.history.counter_moves[m.get_source().to_index()][m.get_dest().to_index()] = r;

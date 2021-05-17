@@ -44,6 +44,6 @@ impl UciFunctions {
   pub fn go(&mut self, depth: i16, nodes: i32, time: i16, timemn: bool) {
     let start = SystemTime::now();
     let mut stopper: search::Stopper = search::Stopper { st: start, nodes: nodes, depth: depth, time: time, should_stop: false };
-    self.searcher.iterative_deepening(self.board, -10000, 10000, stopper);
+    self.searcher.search_pos(self.board, -10000, 10000, &stopper);
   }
 }
