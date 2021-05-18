@@ -1,4 +1,5 @@
 mod uci;
+pub mod search;
 extern crate chess;
 
 #[allow(unused_must_use)]

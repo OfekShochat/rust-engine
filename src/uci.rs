@@ -1,6 +1,6 @@
 extern crate chess;
 use std::str::FromStr;
-mod search;
+use search;
 use std::time::SystemTime;
 
 pub struct UciParser {
