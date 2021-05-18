@@ -1,6 +1,7 @@
 extern crate chess;
 use std::{time::SystemTime, vec};
 use std::collections::HashMap;
+
 pub struct Search {
   nodes: i32,
   tt   : HashMap<i32, TtEntry>,
@@ -8,56 +9,6 @@ pub struct Search {
        : HistoryHeuristics,
   //thread_pool: rayon::ThreadPoolBuilder
   pruned: i32
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Stopper {
-  pub st:          SystemTime,
-  pub nodes:       i32,
-  pub depth:       i16,
-  pub time:        i16,
-  pub should_stop: bool,
-}
-
-struct Psqt {
-  wpawn: Vec<i32>,
-  wrook: Vec<i32>,
-  wknight: Vec<i32>,
-  wbishop: Vec<i32>,
-  wqueen: Vec<i32>,
-  wking: Vec<i32>,
-
-  brook: Vec<i32>,
-  bknight: Vec<i32>,
-  bbishop: Vec<i32>,
-  bqueen: Vec<i32>,
-  bking: Vec<i32>,
-}
-
-/*
-impl Psqt {
-  pub fn new() -> Self {
-    let Wpawn = (
-      0, 0, 0, 0, 0, 0, 0, 0,
-      70, 72, 74, 80, 80, 74, 72, 70,
-      74, 76, 78, 88, 88, 78, 76, 74,
-      75, 80, 82, 90, 90, 82, 80, 75,
-      74, 76, 78, 88, 88, 78, 76, 74,
-      60, 62, 64, 70, 70, 64, 62, 60,
-      60, 62, 64, 70, 70, 64, 62, 60,
-      0, 0, 0, 0, 0, 0, 0, 0
-    );
-  }
-}*/
-
-#[derive(Clone)]
-struct TtEntry {
-  eval: i32
-}
-
-struct HistoryHeuristics {
-  counter_moves: Vec<Vec<i32>>,
-  killers:       Vec<Vec<chess::ChessMove>>
 }
 
 impl Search {
