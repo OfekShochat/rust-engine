@@ -1,25 +1,38 @@
-use std::{f64, mem};
+use std::{f32, mem};
 #[cfg(target_arch = "x86_64")]
 #[warn(non_snake_case)]
 use std::arch::x86_64::*;
+use std::time::SystemTime;
+
+pub struct Network {
+  hidden1: Layer,
+  hidden2: Layer,
+  output:  Layer
+}
+
+impl Network {
+  pub fn new() -> Self {
+    return Self { hidden1: Layer::new(), hidden2: Layer::new(), output: Layer::new() }
+  }
+}
 
 pub struct Layer {
-  weights: Vec<Vec<__m256d>>,
-  biases: Vec<Vec<__m256d>>
+  weights: Vec<Vec<__m256>>,
+  biases: Vec<Vec<__m256>>
 }
 
 impl Layer {
   pub fn new() -> Self {
-    return Self { weights: Vec::<Vec<__m256d>>::new(), biases: Vec::<Vec<__m256d>>::new() };
+    return Self { weights: Vec::<Vec<__m256>>::new(), biases: Vec::<Vec<__m256>>::new() };
   }
-  pub fn load_parameters(&mut self, w: Vec<Vec<f64>>, b: Vec<f64>) {
+  pub fn load_parameters(&mut self, w: Vec<Vec<f32>>, b: Vec<f32>) {
     let s = w.len();
     self.weights = self.split_more_and_set(w, 0.0);
     self.biases = self.split_more_and_set(Layer::reconstruct_biases(s, b), 0.0);
   }
 
-  pub fn clamp(out: Vec<f64>, min: f64, max: f64) -> Vec<f64> {
-    let mut o: Vec<f64> = [].to_vec();
+  pub fn clamp(out: Vec<f32>, min: f32, max: f32) -> Vec<f32> {
+    let mut o: Vec<f32> = [].to_vec();
     for i in 0..out.len() {
       if out[i] > max {
         o.push(max);
@@ -32,10 +45,10 @@ impl Layer {
     return o;
   }
 
-  fn reconstruct_biases(lw: usize, b: Vec<f64>) -> Vec<Vec<f64>> {
-    let mut new_biases: Vec<Vec<f64>> = [].to_vec();
+  fn reconstruct_biases(lw: usize, b: Vec<f32>) -> Vec<Vec<f32>> {
+    let mut new_biases: Vec<Vec<f32>> = [].to_vec();
     for i in 0..b.len() {
-      let mut temp: Vec<f64> = [].to_vec();
+      let mut temp: Vec<f32> = [].to_vec();
       for j in 0..lw {
         if j == 0 {
           temp.push(b[i]);
@@ -48,37 +61,43 @@ impl Layer {
     return new_biases;
   }
 
-  fn reconstruct_inputs(lw: usize, mut x: Vec<f64>) -> Vec<Vec<f64>> {
-    let mut r: Vec<Vec<f64>> = [].to_vec();
+  fn reconstruct_inputs(lw: usize, mut x: Vec<f32>) -> Vec<Vec<f32>> {
+    let start = SystemTime::now();
+    let mut r: Vec<Vec<f32>> = [].to_vec();
     for _ in 0..lw {
       let mx = &mut x;
       r.push(mx.to_vec());
     }
+    let duration: u128 = start.elapsed().unwrap().as_nanos();
+    println!("{}", duration);
     return r;
   }
 
   #[allow(non_snake_case)]
   unsafe fn vector_term(
-    xs: __m256d,
-    ws: __m256d,
-    bs: __m256d,
-  ) -> (f64, f64, f64, f64) {
-    let WxX = _mm256_mul_pd(xs, ws);
-    let WxXpB = _mm256_add_pd(WxX, bs);
-    let out_unpacked: (f64, f64, f64, f64) = mem::transmute(WxXpB);
+    xs: __m256,
+    ws: __m256,
+    bs: __m256,
+  ) -> (f32, f32, f32, f32, f32, f32, f32, f32) {
+    let WxX = _mm256_mul_ps(xs, ws);
+    let WxXpB = _mm256_add_ps(WxX, bs);
+    let out_unpacked: (f32, f32, f32, f32, f32, f32, f32, f32) = mem::transmute(WxXpB);
     return out_unpacked;
   }
 
-  pub fn forward(&mut self, x: Vec<f64>) -> Vec<f64> {
+  pub fn forward(&mut self, x: Vec<f32>) -> Vec<f32> {
+    //let start = SystemTime::now();
     let inputs = self.split_more_and_set(Layer::reconstruct_inputs(self.weights.len(), x), 0.0);
-    let mut out: Vec<f64> = [].to_vec();
+    //let duration: u128 = start.elapsed().unwrap().as_nanos();
+    //println!("{}", duration);
+    let mut out: Vec<f32> = [].to_vec();
     assert!(self.weights.len() == self.biases.len());
     for i in 0..self.weights.len() {
-      let mut neuron_out: f64 = 0.0;
+      let mut neuron_out: f32 = 0.0;
       for j in 0..self.weights[i].len() {
         unsafe {
           let r = Layer::vector_term(inputs[i][j], self.weights[i][j], self.biases[i][j]);
-          neuron_out += r.0 + r.1 + r.2 + r.3;
+          neuron_out += r.0 + r.1 + r.2 + r.3 + r.4 + r.5 + r.6 + r.7;
         }
       }
       out.push(neuron_out);
@@ -86,8 +105,8 @@ impl Layer {
     return out;
   }
 
-  fn split_more_and_set(&mut self, a: Vec<Vec<f64>>, left_over: f64) -> Vec<Vec<__m256d>> {
-    // splitting weights to groups of 4 for simd calculation
+  fn split_more_and_set(&mut self, a: Vec<Vec<f32>>, left_over: f32) -> Vec<Vec<__m256>> {
+    // splitting weights to groups of 8 for simd calculation
     let mut splitted = Vec::new();
     
     for i in 0..a.len() {
@@ -95,19 +114,19 @@ impl Layer {
       let mut temp = Vec::new();
       for j in 0..a[i].len() {
         temp.push(a[i][j]);
-        if j % 4 == 3 {
+        if j % 8 == 7 {
           unsafe {
-            curr_splitted.push(_mm256_set_pd(temp[0], temp[1], temp[2], temp[3]));
+            curr_splitted.push(_mm256_set_ps(temp[0], temp[1], temp[2], temp[3], temp[4], temp[5], temp[6], temp[7]));
           }
           temp.clear()
         }
       }
       if temp.len() > 0 {
-        for _ in 0..4-temp.len() {
+        for _ in 0..8-temp.len() {
           temp.push(left_over)
         }
         unsafe {
-          curr_splitted.push(_mm256_set_pd(temp[0], temp[1], temp[2], temp[3]));
+          curr_splitted.push(_mm256_set_ps(temp[0], temp[1], temp[2], temp[3], temp[4], temp[5], temp[6], temp[7]));
         }
       }
       splitted.push(curr_splitted);

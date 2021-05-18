@@ -1,7 +1,7 @@
 extern crate npy;
 use std::io::Read;
 
-pub fn load() -> (Vec<Vec<f64>>, Vec<f64>) {
+pub fn load() -> (Vec<Vec<f32>>, Vec<f32>) {
   let mut buf = vec![];
   let mut biases = vec![];
   let mut weights = vec![];
@@ -25,9 +25,9 @@ pub fn load() -> (Vec<Vec<f64>>, Vec<f64>) {
     }
     if !is_biases {
       if !((a-1) % (weights_per_neuron as i8) == (weights_per_neuron as i8 - 1)) {
-        temp.push(i);
+        temp.push(i as f32);
       } else {
-        temp.push(i);
+        temp.push(i as f32);
         weights.push(temp.clone());
         temp.clear();
       }
@@ -35,7 +35,7 @@ pub fn load() -> (Vec<Vec<f64>>, Vec<f64>) {
       if i == 8.366 {
         break;
       }
-      biases.push(i);
+      biases.push(i as f32);
     }
     a+=1;
   }

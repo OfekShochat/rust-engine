@@ -13,15 +13,16 @@ fn main() {
   }*/
   //println!("");
   let mut l = simd::Layer::new();
-  let /*mut*/ w = d.0; // Vec::<Vec<f64>>::new();
-  let /*mut*/ b: Vec<f64> = d.1; //[].to_vec();
+  let /*mut*/ w = d.0; // Vec::<Vec<f32>>::new();
+  let /*mut*/ b: Vec<f32> = d.1; //[].to_vec();
   //for i in b.clone() {
   //  println!("{}", i)
   //}
   //println!("");
   let mut rng = rand::thread_rng();
+
   l.load_parameters(w, b);
-  let test: Vec<f64> = [rng.gen::<f64>()*2.0-1.0, rng.gen::<f64>()*2.0-1.0, rng.gen::<f64>()*2.0-1.0, rng.gen::<f64>()*2.0-1.0, rng.gen::<f64>()*2.0-1.0].to_vec();
+  let test: Vec<f32> = [rng.gen::<f32>()*2.0-1.0, rng.gen::<f32>()*2.0-1.0, rng.gen::<f32>()*2.0-1.0, rng.gen::<f32>()*2.0-1.0, rng.gen::<f32>()*2.0-1.0].to_vec();
   let start = SystemTime::now();
   let out = l.forward(test);
   let o = simd::Layer::clamp(out, -1.0, 1.0);
