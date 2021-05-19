@@ -14,6 +14,10 @@ impl Network {
   pub fn new() -> Self {
     return Self { hidden1: Layer::new(), hidden2: Layer::new(), output: Layer::new() }
   }
+
+  pub fn forward() {
+    
+  }
 }
 
 pub struct Layer {
@@ -62,14 +66,11 @@ impl Layer {
   }
 
   fn reconstruct_inputs(lw: usize, mut x: Vec<f32>) -> Vec<Vec<f32>> {
-    let start = SystemTime::now();
     let mut r: Vec<Vec<f32>> = [].to_vec();
     for _ in 0..lw {
       let mx = &mut x;
       r.push(mx.to_vec());
     }
-    let duration: u128 = start.elapsed().unwrap().as_nanos();
-    println!("{}", duration);
     return r;
   }
 
@@ -111,22 +112,41 @@ impl Layer {
     
     for i in 0..a.len() {
       let mut curr_splitted = Vec::new();
-      let mut temp = Vec::new();
-      for j in 0..a[i].len() {
-        temp.push(a[i][j]);
-        if j % 8 == 7 {
-          unsafe {
-            curr_splitted.push(_mm256_set_ps(temp[0], temp[1], temp[2], temp[3], temp[4], temp[5], temp[6], temp[7]));
-          }
-          temp.clear()
+      let mut iter = a[i].chunks_exact(8);
+      while let Some(chunk) = iter.next() {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7]));
         }
       }
-      if temp.len() > 0 {
-        for _ in 0..8-temp.len() {
-          temp.push(left_over)
-        }
+      let rest = iter.remainder();
+      let rl = rest.len();
+      if rl == 1 {
         unsafe {
-          curr_splitted.push(_mm256_set_ps(temp[0], temp[1], temp[2], temp[3], temp[4], temp[5], temp[6], temp[7]));
+          curr_splitted.push(_mm256_set_ps(rest[0], left_over, left_over, left_over, left_over, left_over, left_over, left_over));
+        }
+      } else if rl == 2 {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(rest[0], rest[1], left_over, left_over, left_over, left_over, left_over, left_over));
+        }
+      } else if rl == 3 {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(rest[0], rest[1], rest[2], left_over, left_over, left_over, left_over, left_over));
+        }
+      } else if rl == 4 {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(rest[0], rest[1], rest[2], rest[3], left_over, left_over, left_over, left_over));
+        }
+      } else if rl == 5 {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(rest[0], rest[1], rest[2], rest[3], rest[4], left_over, left_over, left_over));
+        }
+      } else if rl == 6 {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(rest[0], rest[1], rest[2], rest[3], rest[4], rest[5], left_over, left_over));
+        }
+      } else if rl == 7 {
+        unsafe {
+          curr_splitted.push(_mm256_set_ps(rest[0], rest[1], rest[2], rest[3], rest[4], rest[5], rest[6], left_over));
         }
       }
       splitted.push(curr_splitted);
