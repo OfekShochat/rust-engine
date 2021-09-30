@@ -1,12 +1,15 @@
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::{collections::HashMap, time::Instant};
 
-use chess::{Board, BoardStatus, MoveGen, Piece};
+use chess::{Board, BoardStatus, ChessMove, MoveGen, Piece};
 
 pub const INF: i32 = 10000;
 
 pub struct TTEntry {
-  score: i32
+  mov: ChessMove,
+  score: i32,
+  depth: u8,
 }
 
 pub struct Manager {
@@ -15,11 +18,19 @@ pub struct Manager {
 
 impl Manager {
   pub fn new() -> Manager {
-    Manager { transpositions: Arc::new(Mutex::new(HashMap::new())) }
+    Manager { transpositions: Arc::new(Mutex::new(HashMap::with_capacity(1000))) }
   }
 
   pub fn iterative_deepening(&self) {
-    let mut s = SearchWorker::new(Arc::clone(&self.transpositions));
+    for _ in 0..3 {
+      let t = Arc::clone(&self.transpositions);
+      thread::spawn(move || {
+        let mut s = SearchWorker::new(t);
+        s.iterative_deepening(chess::Board::default(), -INF, INF, 100);
+      });
+    }
+    let t = Arc::clone(&self.transpositions);
+    let mut s = SearchWorker::new(t);
     s.iterative_deepening(chess::Board::default(), -INF, INF, 100);
   }
 }
@@ -53,7 +64,7 @@ impl SearchWorker {
 
   fn search(&mut self, board: Board, mut alpha: i32, beta: i32, depth: u8, color: i8) -> i32 {
     match board.status() {
-      BoardStatus::Checkmate => return -10000,
+      BoardStatus::Checkmate => return -INF,
       BoardStatus::Stalemate => return 0,
       _ => {}
     }
@@ -62,17 +73,17 @@ impl SearchWorker {
       return self.quiescence(&board, alpha, beta, color);
     }
 
-    let static_eval = self.evaluate(&board);
-    self.tt.lock().unwrap().insert(board.get_hash(), TTEntry { score: static_eval });
-
-    let moves = MoveGen::new_legal(&board);
-    for m in moves {
+    let mut moves = MoveGen::new_legal(&board);
+    for _ in 0..moves.len() {
+      let m = self.pick_move(&board, &mut moves);
       self.nodes += 1;
       let b = board.make_move_new(m);
       let score = -self.search(b, -beta, -alpha, depth - 1, -color);
       if score > alpha {
+        self.tt.lock().unwrap().insert(board.get_hash(), TTEntry { mov: m, score, depth });
         alpha = score
-      } else if score >= beta {
+      }
+      if score >= beta {
         return beta;
       }
     }
@@ -81,6 +92,7 @@ impl SearchWorker {
 
   fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, color: i8) -> i32 {
     let stand_pat: i32 = self.evaluate(board);
+
     if stand_pat >= beta {
       return beta;
     }
@@ -106,6 +118,16 @@ impl SearchWorker {
       }
     }
     alpha
+  }
+
+  fn pick_move(&mut self, board: &Board, moves: &mut MoveGen) -> ChessMove {
+    match self.tt.lock().unwrap().get(&board.get_hash()) {
+      Some(m) => {
+        moves.remove_move(m.mov);
+        m.mov
+      }
+      None => moves.next().unwrap()
+    }
   }
 
   fn evaluate(&self, board: &Board) -> i32 {
