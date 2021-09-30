@@ -22,16 +22,16 @@ impl Manager {
   }
 
   pub fn iterative_deepening(&self) {
-    for _ in 0..3 {
+    for _ in 0..0 {
       let t = Arc::clone(&self.transpositions);
       thread::spawn(move || {
         let mut s = SearchWorker::new(t);
-        s.iterative_deepening(chess::Board::default(), -INF, INF, 100);
+        s.iterative_deepening::<false>(chess::Board::default(), -INF, INF, 100);
       });
     }
     let t = Arc::clone(&self.transpositions);
     let mut s = SearchWorker::new(t);
-    s.iterative_deepening(chess::Board::default(), -INF, INF, 100);
+    s.iterative_deepening::<true>(chess::Board::default(), -INF, INF, 100);
   }
 }
 
@@ -45,19 +45,22 @@ impl SearchWorker {
     SearchWorker { nodes: 0, tt }
   }
 
-  pub fn iterative_deepening(&mut self, board: Board, alpha: i32, beta: i32, depth: u8) -> i32 {
+  pub fn iterative_deepening<const MAIN: bool>(&mut self, board: Board, alpha: i32, beta: i32, depth: u8) -> i32 {
     let mut value = 0;
     let start = Instant::now();
     for d in 1..depth {
       let start_depth = Instant::now();
       value = self.search(board, alpha, beta, d, 1);
-      println!(
-        "info depth {} cp {} nps {} time {}",
-        d,
-        value,
-        self.nodes as f32 / start_depth.elapsed().as_secs_f32(),
-        start.elapsed().as_secs_f32()
-      );
+      if MAIN {
+        println!(
+          "info depth {} score cp {} nodes {} nps {} time {}",
+          d,
+          value,
+          self.nodes,
+          (self.nodes as f32 / start_depth.elapsed().as_secs_f32()) as usize,
+          start.elapsed().as_millis()
+        );
+      }
     }
     value
   }
@@ -74,18 +77,23 @@ impl SearchWorker {
     }
 
     let mut moves = MoveGen::new_legal(&board);
+    let mut best_move = ChessMove::default();
     for _ in 0..moves.len() {
       let m = self.pick_move(&board, &mut moves);
       self.nodes += 1;
       let b = board.make_move_new(m);
       let score = -self.search(b, -beta, -alpha, depth - 1, -color);
       if score > alpha {
-        self.tt.lock().unwrap().insert(board.get_hash(), TTEntry { mov: m, score, depth });
+        best_move = m;
         alpha = score
       }
       if score >= beta {
         return beta;
       }
+    }
+
+    if best_move != ChessMove::default() {
+      self.tt.lock().unwrap().insert(board.get_hash(), TTEntry { mov: best_move, score: alpha, depth });
     }
     alpha
   }
