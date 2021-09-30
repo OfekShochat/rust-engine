@@ -1,14 +1,37 @@
-use std::time::Instant;
+use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, time::Instant};
 
 use chess::{Board, BoardStatus, MoveGen, Piece};
 
+pub const INF: i32 = 10000;
+
+pub struct TTEntry {
+  score: i32
+}
+
+pub struct Manager {
+  transpositions: Arc<Mutex<HashMap<u64, TTEntry>>>,
+}
+
+impl Manager {
+  pub fn new() -> Manager {
+    Manager { transpositions: Arc::new(Mutex::new(HashMap::new())) }
+  }
+
+  pub fn iterative_deepening(&self) {
+    let mut s = SearchWorker::new(Arc::clone(&self.transpositions));
+    s.iterative_deepening(chess::Board::default(), -INF, INF, 100);
+  }
+}
+
 pub struct SearchWorker {
   pub nodes: usize,
+  tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
 }
 
 impl SearchWorker {
-  pub fn new() -> SearchWorker {
-    SearchWorker { nodes: 0 }
+  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>) -> SearchWorker {
+    SearchWorker { nodes: 0, tt }
   }
 
   pub fn iterative_deepening(&mut self, board: Board, alpha: i32, beta: i32, depth: u8) -> i32 {
@@ -38,6 +61,9 @@ impl SearchWorker {
       self.nodes += 1;
       return self.quiescence(&board, alpha, beta, color);
     }
+
+    let static_eval = self.evaluate(&board);
+    self.tt.lock().unwrap().insert(board.get_hash(), TTEntry { score: static_eval });
 
     let moves = MoveGen::new_legal(&board);
     for m in moves {
