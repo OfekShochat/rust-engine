@@ -13,9 +13,9 @@ impl SearchWorker {
 
   pub fn iterative_deepening(&mut self, board: Board, alpha: i32, beta: i32, depth: u8) -> i32 {
     let mut value = 0;
-    let start = Instant::now(); 
+    let start = Instant::now();
     for d in 1..depth {
-      let start_depth = Instant::now(); 
+      let start_depth = Instant::now();
       value = self.search(board, alpha, beta, d, 1);
       println!(
         "info depth {} cp {} nps {} time {}",
@@ -58,7 +58,7 @@ impl SearchWorker {
     if stand_pat >= beta {
       return beta;
     }
-    if alpha < stand_pat  {
+    if alpha < stand_pat {
       alpha = stand_pat;
     }
     let prune_delta: i32 = 1000;
