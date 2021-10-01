@@ -1,5 +1,6 @@
 extern crate chess;
 
+pub mod psqt;
 mod search;
 
 fn main() {

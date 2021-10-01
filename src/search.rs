@@ -2,7 +2,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{collections::HashMap, time::Instant};
 
-use chess::{Board, BoardStatus, ChessMove, MoveGen, Piece};
+use chess::{Board, BoardStatus, ChessMove, MoveGen};
+
+use crate::psqt::PSQT;
 
 pub const INF: i32 = 10000;
 
@@ -65,15 +67,14 @@ impl SearchWorker {
     value
   }
 
-  fn search(&mut self, board: Board, mut alpha: i32, beta: i32, depth: u8, color: i8) -> i32 {
+  fn search(&mut self, board: Board, mut alpha: i32, beta: i32, depth: u8, color: i32) -> i32 {
     match board.status() {
       BoardStatus::Checkmate => return -INF,
       BoardStatus::Stalemate => return 0,
       _ => {}
     }
     if depth == 0 {
-      self.nodes += 1;
-      return self.quiescence(&board, alpha, beta, color);
+      return -self.quiescence(&board, alpha, beta, color);
     }
 
     let mut moves = MoveGen::new_legal(&board);
@@ -98,8 +99,11 @@ impl SearchWorker {
     alpha
   }
 
-  fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, color: i8) -> i32 {
-    let stand_pat: i32 = self.evaluate(board);
+  fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, color: i32) -> i32 {
+    let stand_pat: i32 = self.evaluate(board) * color;
+    if stand_pat > 1000 {
+      println!("{}", board.to_string());
+    }
 
     if stand_pat >= beta {
       return beta;
@@ -145,22 +149,11 @@ impl SearchWorker {
       let piece = board.piece_on(s);
 
       match color {
-        Some(chess::Color::White) => evaluation += self.get_piece_value(piece.unwrap()),
-        Some(chess::Color::Black) => evaluation -= self.get_piece_value(piece.unwrap()),
+        Some(chess::Color::White) => evaluation += PSQT[piece.unwrap().to_index()][s.to_index()],
+        Some(chess::Color::Black) => evaluation -= PSQT[piece.unwrap().to_index()][s.to_index()],
         None => continue,
       }
     }
-    evaluation
-  }
-
-  fn get_piece_value(&self, piece: Piece) -> i32 {
-    match piece {
-      Piece::Bishop => 340,
-      Piece::Knight => 320,
-      Piece::Pawn => 100,
-      Piece::Queen => 900,
-      Piece::Rook => 500,
-      _ => 0,
-    }
+    evaluation / 512 + 16
   }
 }
