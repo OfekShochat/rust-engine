@@ -20,7 +20,9 @@ pub struct Manager {
 
 impl Manager {
   pub fn new() -> Manager {
-    Manager { transpositions: Arc::new(Mutex::new(HashMap::with_capacity(1000))) }
+    Manager {
+      transpositions: Arc::new(Mutex::new(HashMap::with_capacity(1000))),
+    }
   }
 
   pub fn iterative_deepening(&self) {
@@ -40,34 +42,42 @@ impl Manager {
 pub struct SearchWorker {
   pub nodes: usize,
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
+  best_move: ChessMove,
 }
 
 impl SearchWorker {
   pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>) -> SearchWorker {
-    SearchWorker { nodes: 0, tt }
+    SearchWorker { nodes: 0, tt, best_move: ChessMove::default() }
   }
 
-  pub fn iterative_deepening<const MAIN: bool>(&mut self, board: Board, alpha: i32, beta: i32, depth: u8) -> i32 {
+  pub fn iterative_deepening<const MAIN: bool>(
+    &mut self,
+    board: Board,
+    alpha: i32,
+    beta: i32,
+    depth: u8,
+  ) -> i32 {
     let mut value = 0;
     let start = Instant::now();
     for d in 1..depth {
       let start_depth = Instant::now();
-      value = self.search(board, alpha, beta, d, 1);
+      value = self.search::<true>(board, alpha, beta, d, 1);
       if MAIN {
         println!(
-          "info depth {} score cp {} nodes {} nps {} time {}",
+          "info depth {} score cp {} nodes {} nps {} time {} pv {}",
           d,
           value,
           self.nodes,
           (self.nodes as f32 / start_depth.elapsed().as_secs_f32()) as usize,
-          start.elapsed().as_millis()
+          start.elapsed().as_millis(),
+          self.best_move,
         );
       }
     }
     value
   }
 
-  fn search(&mut self, board: Board, mut alpha: i32, beta: i32, depth: u8, color: i32) -> i32 {
+  fn search<const ROOT: bool>(&mut self, board: Board, mut alpha: i32, beta: i32, depth: u8, color: i32) -> i32 {
     match board.status() {
       BoardStatus::Checkmate => return -INF,
       BoardStatus::Stalemate => return 0,
@@ -79,12 +89,15 @@ impl SearchWorker {
 
     let mut moves = MoveGen::new_legal(&board);
     let mut best_move = ChessMove::default();
-    for _ in 0..moves.len() {
-      let m = self.pick_move(&board, &mut moves);
+    for i in 0..moves.len() {
+      let m = self.pick_move(&board, &mut moves, i);
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search(b, -beta, -alpha, depth - 1, -color);
+      let score = -self.search::<false>(b, -beta, -alpha, depth - 1, -color);
       if score > alpha {
+        if ROOT {
+          self.best_move = m;
+        }
         best_move = m;
         alpha = score
       }
@@ -94,7 +107,14 @@ impl SearchWorker {
     }
 
     if best_move != ChessMove::default() {
-      self.tt.lock().unwrap().insert(board.get_hash(), TTEntry { mov: best_move, score: alpha, depth });
+      self.tt.lock().unwrap().insert(
+        board.get_hash(),
+        TTEntry {
+          mov: best_move,
+          score: alpha,
+          depth,
+        },
+      );
     }
     alpha
   }
@@ -125,13 +145,16 @@ impl SearchWorker {
     alpha
   }
 
-  fn pick_move(&mut self, board: &Board, moves: &mut MoveGen) -> ChessMove {
+  fn pick_move(&mut self, board: &Board, moves: &mut MoveGen, i: usize) -> ChessMove {
     match self.tt.lock().unwrap().get(&board.get_hash()) {
       Some(m) => {
-        moves.remove_move(m.mov);
-        m.mov
+        if i == 0 {
+          m.mov
+        } else {
+          moves.next().unwrap()
+        }
       }
-      None => moves.next().unwrap()
+      None => moves.next().unwrap(),
     }
   }
 
