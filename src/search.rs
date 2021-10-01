@@ -101,19 +101,12 @@ impl SearchWorker {
 
   fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, color: i32) -> i32 {
     let stand_pat: i32 = self.evaluate(board) * color;
-    if stand_pat > 1000 {
-      println!("{}", board.to_string());
-    }
 
     if stand_pat >= beta {
       return beta;
     }
     if alpha < stand_pat {
       alpha = stand_pat;
-    }
-    let prune_delta: i32 = 1000;
-    if stand_pat < alpha - prune_delta {
-      return alpha;
     }
 
     let mut moves = MoveGen::new_legal(board);
@@ -150,10 +143,10 @@ impl SearchWorker {
 
       match color {
         Some(chess::Color::White) => evaluation += PSQT[piece.unwrap().to_index()][s.to_index()],
-        Some(chess::Color::Black) => evaluation -= PSQT[piece.unwrap().to_index()][s.to_index()],
+        Some(chess::Color::Black) => evaluation += PSQT[piece.unwrap().to_index() + 6][s.to_index()],
         None => continue,
       }
     }
-    evaluation / 512 + 16
+    evaluation / 512
   }
 }
