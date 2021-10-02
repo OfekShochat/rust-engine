@@ -51,7 +51,11 @@ pub struct SearchWorker {
 
 impl SearchWorker {
   pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>) -> SearchWorker {
-    SearchWorker { nodes: 0, tt, best_move: ChessMove::default() }
+    SearchWorker {
+      nodes: 0,
+      tt,
+      best_move: ChessMove::default(),
+    }
   }
 
   pub fn iterative_deepening<const MAIN: bool>(
@@ -81,7 +85,14 @@ impl SearchWorker {
     value
   }
 
-  fn search<const ROOT: bool>(&mut self, board: Board, mut alpha: i32, beta: i32, depth: u8, color: i32) -> i32 {
+  fn search<const ROOT: bool>(
+    &mut self,
+    board: Board,
+    mut alpha: i32,
+    beta: i32,
+    depth: u8,
+    color: i32,
+  ) -> i32 {
     match board.status() {
       BoardStatus::Checkmate => return -INF,
       BoardStatus::Stalemate => return 0,
@@ -170,7 +181,9 @@ impl SearchWorker {
 
       match color {
         Some(chess::Color::White) => evaluation += PSQT[piece.unwrap().to_index()][s.to_index()],
-        Some(chess::Color::Black) => evaluation += PSQT[piece.unwrap().to_index() + 6][s.to_index()],
+        Some(chess::Color::Black) => {
+          evaluation += PSQT[piece.unwrap().to_index() + 6][s.to_index()]
+        }
         None => continue,
       }
     }
