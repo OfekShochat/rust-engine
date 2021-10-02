@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::{collections::HashMap, time::Instant};
 
@@ -25,7 +25,14 @@ impl Manager {
     }
   }
 
-  pub fn iterative_deepening(&self) {
+  pub fn start(&self) {
+    self.start_others();
+    let t = Arc::clone(&self.transpositions);
+    let mut s = SearchWorker::new(t);
+    s.iterative_deepening::<true>(chess::Board::default(), -INF, INF, 100);
+  }
+
+  fn start_others(&self) {
     for _ in 0..0 {
       let t = Arc::clone(&self.transpositions);
       thread::spawn(move || {
@@ -33,9 +40,6 @@ impl Manager {
         s.iterative_deepening::<false>(chess::Board::default(), -INF, INF, 100);
       });
     }
-    let t = Arc::clone(&self.transpositions);
-    let mut s = SearchWorker::new(t);
-    s.iterative_deepening::<true>(chess::Board::default(), -INF, INF, 100);
   }
 }
 
@@ -107,7 +111,7 @@ impl SearchWorker {
     }
 
     if best_move != ChessMove::default() {
-      self.tt.lock().unwrap().insert(
+      self.lock_tt().insert(
         board.get_hash(),
         TTEntry {
           mov: best_move,
@@ -146,7 +150,7 @@ impl SearchWorker {
   }
 
   fn pick_move(&mut self, board: &Board, moves: &mut MoveGen, i: usize) -> ChessMove {
-    match self.tt.lock().unwrap().get(&board.get_hash()) {
+    match self.lock_tt().get(&board.get_hash()) {
       Some(m) => {
         if i == 0 {
           m.mov
@@ -171,5 +175,9 @@ impl SearchWorker {
       }
     }
     evaluation / 512
+  }
+
+  fn lock_tt(&mut self) -> MutexGuard<'_, HashMap<u64, TTEntry>> {
+    self.tt.lock().unwrap()
   }
 }
