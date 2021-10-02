@@ -3,8 +3,9 @@ extern crate chess;
 pub mod psqt;
 mod search;
 mod movepick;
+mod uci;
 
 fn main() {
-  let s = search::Manager::new();
-  s.start();
+  let mut ucih = uci::Uci::new();
+  ucih.main();
 }

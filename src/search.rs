@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::{collections::HashMap, time::Instant};
@@ -27,19 +28,20 @@ impl Manager {
     }
   }
 
-  pub fn start(&self) {
-    self.start_others();
+  pub fn start(&self, pos: String) {
+    self.start_others(pos.clone());
     let t = Arc::clone(&self.transpositions);
     let mut s = SearchWorker::new(t);
-    s.iterative_deepening::<true>(chess::Board::default(), -INF, INF, 100);
+    s.iterative_deepening::<true>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF, 100);
   }
 
-  fn start_others(&self) {
+  fn start_others(&self, pos: String) {
     for _ in 0..0 {
       let t = Arc::clone(&self.transpositions);
+      let pos = pos.clone();
       thread::spawn(move || {
         let mut s = SearchWorker::new(t);
-        s.iterative_deepening::<false>(chess::Board::default(), -INF, INF, 100);
+        s.iterative_deepening::<false>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF, 100);
       });
     }
   }
