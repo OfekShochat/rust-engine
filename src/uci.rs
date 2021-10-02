@@ -37,6 +37,5 @@ impl Uci {
       }
       _ => {}
     }
-    println!("{}", self.position_fen);
   }
 }
