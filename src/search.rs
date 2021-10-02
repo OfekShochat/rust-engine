@@ -4,12 +4,14 @@ use std::{collections::HashMap, time::Instant};
 
 use chess::{Board, BoardStatus, ChessMove, MoveGen};
 
+use crate::movepick::MovePicker;
 use crate::psqt::PSQT;
 
 pub const INF: i32 = 10000;
 
+#[derive(Clone, Copy)]
 pub struct TTEntry {
-  mov: ChessMove,
+  pub mov: ChessMove,
   score: i32,
   depth: u8,
 }
@@ -102,10 +104,10 @@ impl SearchWorker {
       return -self.quiescence(&board, alpha, beta, color);
     }
 
-    let mut moves = MoveGen::new_legal(&board);
+    let moves = MoveGen::new_legal(&board);
+    let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()));
     let mut best_move = ChessMove::default();
-    for i in 0..moves.len() {
-      let m = self.pick_move(&board, &mut moves, i);
+    while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
       let score = -self.search::<false>(b, -beta, -alpha, depth - 1, -color);
@@ -158,19 +160,6 @@ impl SearchWorker {
       }
     }
     alpha
-  }
-
-  fn pick_move(&mut self, board: &Board, moves: &mut MoveGen, i: usize) -> ChessMove {
-    match self.lock_tt().get(&board.get_hash()) {
-      Some(m) => {
-        if i == 0 {
-          m.mov
-        } else {
-          moves.next().unwrap()
-        }
-      }
-      None => moves.next().unwrap(),
-    }
   }
 
   fn evaluate(&self, board: &Board) -> i32 {
