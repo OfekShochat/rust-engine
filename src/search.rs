@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::{collections::HashMap, time::Instant};
 
-use chess::{Board, BoardStatus, ChessMove, MoveGen};
+use chess::{Board, BoardStatus, ChessMove, Color, MoveGen};
 
 use crate::movepick::MovePicker;
 use crate::psqt::PSQT;
@@ -71,7 +71,7 @@ impl SearchWorker {
     let start = Instant::now();
     for d in 1..depth {
       let start_depth = Instant::now();
-      value = self.search::<true>(board, alpha, beta, d, 1);
+      value = self.search::<true>(board, alpha, beta, d);
       if MAIN {
         println!(
           "info depth {} score cp {} nodes {} nps {} time {} pv {}",
@@ -93,7 +93,6 @@ impl SearchWorker {
     mut alpha: i32,
     beta: i32,
     depth: u8,
-    color: i32,
   ) -> i32 {
     match board.status() {
       BoardStatus::Checkmate => return -INF,
@@ -101,7 +100,7 @@ impl SearchWorker {
       _ => {}
     }
     if depth == 0 {
-      return self.quiescence(&board, alpha, beta, color);
+      return self.quiescence(&board, alpha, beta);
     }
 
     let moves = MoveGen::new_legal(&board);
@@ -110,7 +109,7 @@ impl SearchWorker {
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search::<false>(b, -beta, -alpha, depth - 1, -color);
+      let score = -self.search::<false>(b, -beta, -alpha, depth - 1);
       if score > alpha {
         if ROOT {
           self.best_move = m;
@@ -136,8 +135,8 @@ impl SearchWorker {
     alpha
   }
 
-  fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, color: i32) -> i32 {
-    let stand_pat: i32 = self.evaluate(board) * color;
+  fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32) -> i32 {
+    let stand_pat: i32 = self.evaluate(board);
 
     if stand_pat >= beta {
       return beta;
@@ -152,7 +151,7 @@ impl SearchWorker {
     for m in moves {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.quiescence(&b, -beta, -alpha, -color);
+      let score = -self.quiescence(&b, -beta, -alpha);
       if score >= beta {
         return beta;
       } else if score > alpha {
@@ -176,7 +175,7 @@ impl SearchWorker {
         None => continue,
       }
     }
-    evaluation / 512
+    evaluation / 512 * if board.side_to_move() == Color::Black { -1 } else { 1 }
   }
 
   fn lock_tt(&mut self) -> MutexGuard<'_, HashMap<u64, TTEntry>> {
