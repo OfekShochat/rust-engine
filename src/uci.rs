@@ -1,6 +1,6 @@
 use std::{io::stdin, str::SplitAsciiWhitespace};
 
-use crate::search::Manager;
+use crate::search::{Limit, Manager};
 
 pub struct Uci {
   searcher: Manager,
@@ -11,7 +11,7 @@ impl Uci {
   pub fn new() -> Uci {
     Uci {
       searcher: Manager::new(),
-      position_fen: String::new(),
+      position_fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string(),
     }
   }
 
@@ -21,7 +21,7 @@ impl Uci {
       stdin().read_line(&mut buf).unwrap();
       let mut tokens = buf.split_ascii_whitespace();
       match tokens.next().unwrap() {
-        "go" => self.searcher.start(self.position_fen.clone()),
+        "go" => self.searcher.start(self.position_fen.clone(), Limit::timed(10000)),
         "position" => self.position(&mut tokens),
         _ => eprintln!("invalid command"),
       }

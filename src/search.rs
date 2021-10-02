@@ -17,6 +17,31 @@ pub struct TTEntry {
   depth: u8,
 }
 
+#[derive(Clone, Copy)]
+pub struct Limit {
+  time: u128,
+  depth: i32,
+  started: Instant,
+}
+
+impl Limit {
+  pub fn timed(time: u128) -> Limit {
+    Limit { time, depth: 1000, started: Instant::now() }
+  }
+
+  pub fn depthed(depth: i32) -> Limit {
+    Limit { time: 10000000, depth, started: Instant::now() }
+  }
+
+  pub fn check(&mut self, depth: i32) -> bool {
+    if self.started.elapsed().as_millis() > self.time || self.depth <= depth {
+      true
+    } else {
+      false
+    }
+  }
+}
+
 pub struct Manager {
   transpositions: Arc<Mutex<HashMap<u64, TTEntry>>>,
 }
@@ -28,10 +53,10 @@ impl Manager {
     }
   }
 
-  pub fn start(&self, pos: String) {
-    self.start_others(pos.clone());
+  pub fn start(&self, pos: String, lim: Limit) {
+    self.start_others(pos.clone(), lim);
     let t = Arc::clone(&self.transpositions);
-    let mut s = SearchWorker::new(t);
+    let mut s = SearchWorker::new(t, lim);
     s.iterative_deepening::<true>(
       chess::Board::from_str(pos.as_str()).unwrap(),
       -INF,
@@ -40,12 +65,12 @@ impl Manager {
     );
   }
 
-  fn start_others(&self, pos: String) {
+  fn start_others(&self, pos: String, lim: Limit) {
     for _ in 0..0 {
       let t = Arc::clone(&self.transpositions);
       let pos = pos.clone();
       thread::spawn(move || {
-        let mut s = SearchWorker::new(t);
+        let mut s = SearchWorker::new(t, lim);
         s.iterative_deepening::<false>(
           chess::Board::from_str(pos.as_str()).unwrap(),
           -INF,
@@ -61,14 +86,16 @@ pub struct SearchWorker {
   pub nodes: usize,
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
   best_move: ChessMove,
+  lim: Limit,
 }
 
 impl SearchWorker {
-  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>) -> SearchWorker {
+  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>, lim: Limit) -> SearchWorker {
     SearchWorker {
       nodes: 0,
       tt,
       best_move: ChessMove::default(),
+      lim,
     }
   }
 
@@ -83,7 +110,7 @@ impl SearchWorker {
     let start = Instant::now();
     for d in 1..depth {
       let start_depth = Instant::now();
-      value = self.search::<true>(board, alpha, beta, d);
+      value = self.search::<true>(board, alpha, beta, d, 0);
       if MAIN {
         println!(
           "info depth {} score cp {} nodes {} nps {} time {} pv {}",
@@ -95,6 +122,9 @@ impl SearchWorker {
           self.best_move,
         );
       }
+      if self.lim.check(d.into()) {
+        break
+      }
     }
     value
   }
@@ -105,6 +135,7 @@ impl SearchWorker {
     mut alpha: i32,
     beta: i32,
     depth: u8,
+    curr_depth: i32,
   ) -> i32 {
     match board.status() {
       BoardStatus::Checkmate => return -INF,
@@ -121,7 +152,8 @@ impl SearchWorker {
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search::<false>(b, -beta, -alpha, depth - 1);
+      let score = -self.search::<false>(b, -beta, -alpha, depth - 1, curr_depth + 1);
+
       if score > alpha {
         if ROOT {
           self.best_move = m;
@@ -131,6 +163,10 @@ impl SearchWorker {
       }
       if score >= beta {
         return beta;
+      }
+
+      if self.nodes % 1024 == 0 && self.lim.check(curr_depth) {
+        return self.evaluate(&board);
       }
     }
 
