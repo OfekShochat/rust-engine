@@ -11,10 +11,16 @@ pub struct MovePicker {
 impl MovePicker {
   pub fn new(moves: MoveGen, tt_move: Option<&TTEntry>) -> MovePicker {
     match tt_move {
-      Some(tte) => {
-        MovePicker { moves, tt_move: Some(*tte), used_tt_move: false }
-      }
-      None => MovePicker { moves, tt_move: None, used_tt_move: false }
+      Some(tte) => MovePicker {
+        moves,
+        tt_move: Some(*tte),
+        used_tt_move: false,
+      },
+      None => MovePicker {
+        moves,
+        tt_move: None,
+        used_tt_move: false,
+      },
     }
   }
 

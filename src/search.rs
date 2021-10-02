@@ -32,7 +32,12 @@ impl Manager {
     self.start_others(pos.clone());
     let t = Arc::clone(&self.transpositions);
     let mut s = SearchWorker::new(t);
-    s.iterative_deepening::<true>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF, 100);
+    s.iterative_deepening::<true>(
+      chess::Board::from_str(pos.as_str()).unwrap(),
+      -INF,
+      INF,
+      100,
+    );
   }
 
   fn start_others(&self, pos: String) {
@@ -41,7 +46,12 @@ impl Manager {
       let pos = pos.clone();
       thread::spawn(move || {
         let mut s = SearchWorker::new(t);
-        s.iterative_deepening::<false>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF, 100);
+        s.iterative_deepening::<false>(
+          chess::Board::from_str(pos.as_str()).unwrap(),
+          -INF,
+          INF,
+          100,
+        );
       });
     }
   }
@@ -177,7 +187,12 @@ impl SearchWorker {
         None => continue,
       }
     }
-    evaluation / 512 * if board.side_to_move() == Color::Black { -1 } else { 1 }
+    evaluation / 512 *
+      if board.side_to_move() == Color::Black {
+        -1
+      } else {
+        1
+      }
   }
 
   fn lock_tt(&mut self) -> MutexGuard<'_, HashMap<u64, TTEntry>> {

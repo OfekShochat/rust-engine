@@ -9,7 +9,10 @@ pub struct Uci {
 
 impl Uci {
   pub fn new() -> Uci {
-    Uci { searcher: Manager::new(), position_fen: String::new() }
+    Uci {
+      searcher: Manager::new(),
+      position_fen: String::new(),
+    }
   }
 
   pub fn main(&mut self) {
@@ -31,7 +34,7 @@ impl Uci {
         while let Some(a) = buf.next() {
           self.position_fen += &(a.to_owned() + " ");
         }
-      },
+      }
       _ => {}
     }
     println!("{}", self.position_fen);

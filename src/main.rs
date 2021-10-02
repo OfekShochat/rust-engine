@@ -1,8 +1,8 @@
 extern crate chess;
 
+mod movepick;
 pub mod psqt;
 mod search;
-mod movepick;
 mod uci;
 
 fn main() {
