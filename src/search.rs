@@ -101,7 +101,7 @@ impl SearchWorker {
       _ => {}
     }
     if depth == 0 {
-      return -self.quiescence(&board, alpha, beta, color);
+      return self.quiescence(&board, alpha, beta, color);
     }
 
     let moves = MoveGen::new_legal(&board);
