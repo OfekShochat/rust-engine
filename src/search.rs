@@ -66,7 +66,7 @@ impl Manager {
   }
 
   fn start_others(&self, pos: String, lim: Limit) {
-    for _ in 0..0 {
+    for _ in 0..1 {
       let t = Arc::clone(&self.transpositions);
       let pos = pos.clone();
       thread::spawn(move || {
@@ -125,6 +125,9 @@ impl SearchWorker {
       if self.lim.check(d.into()) {
         break
       }
+    }
+    if MAIN {
+      println!("bestmove {}", self.best_move);
     }
     value
   }
