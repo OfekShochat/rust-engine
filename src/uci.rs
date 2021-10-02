@@ -31,6 +31,7 @@ impl Uci {
   fn position(&mut self, buf: &mut SplitAsciiWhitespace<'_>) {
     match buf.next().unwrap() {
       "fen" => {
+        self.position_fen = String::new();
         while let Some(a) = buf.next() {
           self.position_fen += &(a.to_owned() + " ");
         }
