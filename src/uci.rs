@@ -1,4 +1,6 @@
-use std::{io::stdin, str::SplitAsciiWhitespace};
+use std::{io::stdin, str::{FromStr, SplitAsciiWhitespace}};
+
+use chess::{Board, ChessMove};
 
 use crate::search::{Limit, Manager};
 
@@ -50,17 +52,27 @@ impl Uci {
     match tokens.next().unwrap() {
       "fen" => {
         self.position_fen = String::new();
-        while let Some(a) = tokens.next() {
-          self.position_fen += &(a.to_owned() + " ");
-        }
+        self.parse_fen(tokens);
       }
       "startpos" => {
         self.position_fen = STARTPOS.to_string();
-        while let Some(a) = tokens.next() {
-          self.position_fen += &(a.to_owned() + " ");
-        }
+        self.parse_fen(tokens);
       }
       _ => {}
     }
+  }
+  
+  fn parse_fen(&mut self, tokens: &mut SplitAsciiWhitespace) {
+    while let Some(a) = tokens.next() {
+      if a == "moves" {
+        break
+      }
+      self.position_fen += &(a.to_owned() + " ");
+    }
+    let mut b = Board::from_str(&self.position_fen).unwrap();
+    while let Some(m) = tokens.next() {
+      b = b.make_move_new(ChessMove::from_str(m).expect("illegal move"));
+    }
+    self.position_fen = b.to_string();
   }
 }
