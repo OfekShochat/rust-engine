@@ -30,6 +30,9 @@ impl Uci {
       match tokens.next() {
         Some("go") => self.go(&mut tokens),
         Some("position") => self.position(&mut tokens),
+        Some("isready") => println!("readyok"),
+        Some("uci") => self.uci(),
+        Some("quit") => break,
         _ => eprintln!("invalid command"),
       }
     }
@@ -77,5 +80,11 @@ impl Uci {
       b = b.make_move_new(ChessMove::from_str(m).expect("illegal move"));
     }
     self.position_fen = b.to_string();
+  }
+
+  fn uci(&mut self) {
+    println!("id name ");
+    println!("id author Ofek Shochat");
+    println!("uciok");
   }
 }
