@@ -148,7 +148,7 @@ impl SearchWorker {
     board: Board,
     mut alpha: i32,
     beta: i32,
-    mut depth: u8,
+    depth: u8,
     curr_depth: i32,
   ) -> i32 {
     match board.status() {
@@ -158,16 +158,16 @@ impl SearchWorker {
     }
     if depth <= 0 {
       if board.checkers().popcnt() != 0 {
-        depth += 1;
-      } else {
         return self.quiescence(&board, alpha, beta, curr_depth);
       }
     }
 
-    let static_eval = self.evaluate(&board);
-    if curr_depth < 7
-       && static_eval - 175 * curr_depth / 2 >= beta {
-      return static_eval;
+    {
+      let static_eval = self.evaluate(&board);
+      if curr_depth < 7
+        && static_eval - 175 * curr_depth / 2 >= beta {
+        return static_eval;
+      }
     }
 
     let moves = MoveGen::new_legal(&board);
