@@ -20,9 +20,9 @@ impl Uci {
       let mut buf = String::new();
       stdin().read_line(&mut buf).unwrap();
       let mut tokens = buf.split_ascii_whitespace();
-      match tokens.next().unwrap() {
-        "go" => self.searcher.start(self.position_fen.clone(), Limit::timed(10000)),
-        "position" => self.position(&mut tokens),
+      match tokens.next() {
+        Some("go") => self.searcher.start(self.position_fen.clone(), Limit::timed(10000)),
+        Some("position") => self.position(&mut tokens),
         _ => eprintln!("invalid command"),
       }
     }
