@@ -178,6 +178,18 @@ impl SearchWorker {
       }
     }
 
+    if depth == 8 {
+      let bound = (15 + beta) / 10;
+      if self.search::<false, false>(board, bound-1, bound, 4, curr_depth + 1) >= bound {
+        return beta;
+      }
+
+      let bound = (-15 + alpha) / 10;
+      if self.search::<false, false>(board, bound, bound+1, 4, curr_depth + 1) <= bound {
+        return alpha;
+      }
+    }
+
     let static_eval = self.evaluate(&board);
     if curr_depth < 7 && static_eval - 175 * curr_depth / 2 >= beta {
       return static_eval;
