@@ -20,7 +20,7 @@ pub struct TTEntry {
 #[derive(Clone, Copy)]
 pub struct Limit {
   time: u128,
-  depth: i32,
+  depth: u8,
   started: Instant,
 }
 
@@ -28,20 +28,20 @@ impl Limit {
   pub fn timed(time: u128) -> Limit {
     Limit {
       time,
-      depth: 1000,
+      depth: 100,
       started: Instant::now(),
     }
   }
 
-  pub fn depthed(depth: i32) -> Limit {
+  pub fn depthed(depth: u8) -> Limit {
     Limit {
-      time: 10000000,
+      time: 360000,
       depth,
       started: Instant::now(),
     }
   }
 
-  pub fn check(&mut self, depth: i32) -> bool {
+  pub fn check(&mut self, depth: u8) -> bool {
     if self.started.elapsed().as_millis() > self.time || self.depth <= depth {
       true
     } else {
@@ -189,7 +189,7 @@ impl SearchWorker {
         return beta;
       }
 
-      if self.nodes % 1024 == 0 && self.lim.check(curr_depth) {
+      if self.nodes % 1024 == 0 && self.lim.check(curr_depth as u8) {
         return self.evaluate(&board);
       }
     }
