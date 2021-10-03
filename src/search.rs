@@ -180,12 +180,12 @@ impl SearchWorker {
 
     if depth == 8 {
       let bound = (15 + beta) / 10;
-      if self.search::<false, false>(board, bound-1, bound, 4, curr_depth + 1) >= bound {
+      if self.search::<false, false>(board, bound - 1, bound, 4, curr_depth + 1) >= bound {
         return beta;
       }
 
       let bound = (-15 + alpha) / 10;
-      if self.search::<false, false>(board, bound, bound+1, 4, curr_depth + 1) <= bound {
+      if self.search::<false, false>(board, bound, bound + 1, 4, curr_depth + 1) <= bound {
         return alpha;
       }
     }
@@ -283,9 +283,7 @@ impl SearchWorker {
     for m in moves {
       let futility = stand_pat + 40;
       let piece_value = self.get_piece_value(board.piece_on(m.get_dest()).unwrap());
-      if piece_value + futility <= alpha &&
-        board.piece_on(m.get_source()).unwrap() != Piece::Pawn
-      {
+      if piece_value + futility <= alpha && board.piece_on(m.get_source()).unwrap() != Piece::Pawn {
         continue;
       }
 
