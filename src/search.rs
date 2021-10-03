@@ -35,7 +35,7 @@ impl Limit {
 
   pub fn depthed(depth: u8) -> Limit {
     Limit {
-      time: 360000,
+      time: 3600000,
       depth,
       started: Instant::now(),
     }
