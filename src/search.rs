@@ -166,13 +166,23 @@ impl SearchWorker {
       return static_eval;
     }
 
+    let mut reductions = 0;
+    let mut range_strength: u8 = 0;
+
     let moves = MoveGen::new_legal(&board);
     let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()));
     let mut best_move = ChessMove::default();
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search::<false>(b, -beta, -alpha, depth - 1, curr_depth + 1);
+      let score = -self.search::<false>(b, -beta, -alpha, depth - 1 - if depth > reductions { reductions as u8 } else { 0 }, curr_depth + 1);
+
+      if range_strength < 3 && static_eval - score < 30 {
+        range_strength += 1;
+        if range_strength > 2 {
+          reductions += 1
+        }
+      }
 
       if score > alpha {
         if ROOT {
