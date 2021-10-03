@@ -256,6 +256,11 @@ impl SearchWorker {
     if stand_pat >= beta {
       return beta;
     }
+
+    if stand_pat + 975 < alpha {
+      return alpha;
+    }
+
     if alpha < stand_pat {
       alpha = stand_pat;
     }
@@ -264,7 +269,9 @@ impl SearchWorker {
     let captures: &chess::BitBoard = board.color_combined(!board.side_to_move());
     moves.set_iterator_mask(*captures);
     for m in moves {
-      if self.get_piece_value(board.piece_on(m.get_dest()).unwrap()) + stand_pat + 40 <= alpha &&
+      let futility = stand_pat + 40;
+      let piece_value = self.get_piece_value(board.piece_on(m.get_dest()).unwrap());
+      if piece_value + futility <= alpha &&
         board.piece_on(m.get_source()).unwrap() != Piece::Pawn
       {
         continue;
