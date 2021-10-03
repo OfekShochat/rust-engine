@@ -25,7 +25,7 @@ impl MovePicker {
         tt_move: None,
         used_tt_move: false,
         killers,
-        used_killers: 0
+        used_killers: 0,
       },
     }
   }

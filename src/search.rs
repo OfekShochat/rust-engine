@@ -59,7 +59,7 @@ impl Manager {
   pub fn new() -> Manager {
     Manager {
       transpositions: Arc::new(Mutex::new(HashMap::with_capacity(1000))),
-      killers: Arc::new(Mutex::new([[ChessMove::default(); 2]; 100]))
+      killers: Arc::new(Mutex::new([[ChessMove::default(); 2]; 100])),
     }
   }
 
@@ -104,7 +104,11 @@ pub struct SearchWorker {
 }
 
 impl SearchWorker {
-  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>, killers: Arc<Mutex<[[ChessMove; 2]; 100]>>, lim: Limit) -> SearchWorker {
+  pub fn new(
+    tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
+    killers: Arc<Mutex<[[ChessMove; 2]; 100]>>,
+    lim: Limit,
+  ) -> SearchWorker {
     SearchWorker {
       nodes: 0,
       seld_depth: 0,
