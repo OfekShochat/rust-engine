@@ -130,7 +130,7 @@ impl SearchWorker {
     let start = Instant::now();
     for d in 1..depth {
       let start_depth = Instant::now();
-      value = self.search::<true>(board, alpha, beta, d, 0);
+      value = self.search::<true, false>(board, alpha, beta, d, 0);
       if MAIN {
         println!(
           "info depth {} seldepth {} score cp {} nodes {} nps {} time {} pv {}",
@@ -153,7 +153,7 @@ impl SearchWorker {
     value
   }
 
-  fn search<const ROOT: bool>(
+  fn search<const ROOT: bool, const IN_NULL: bool>(
     &mut self,
     board: Board,
     mut alpha: i32,
@@ -168,6 +168,14 @@ impl SearchWorker {
     }
     if depth <= 0 {
       return self.quiescence(&board, alpha, beta, curr_depth);
+    }
+
+    if board.combined().popcnt() > 5 && board.checkers().popcnt() == 0 && !IN_NULL && depth >= 4 {
+      let b = board.null_move().unwrap();
+      let r = self.search::<false, true>(b, -beta, -beta + 1, depth - 4, curr_depth + 1);
+      if r >= beta {
+        return beta;
+      }
     }
 
     let static_eval = self.evaluate(&board);
@@ -185,7 +193,7 @@ impl SearchWorker {
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search::<false>(
+      let score = -self.search::<false, false>(
         b,
         -beta,
         -alpha,
