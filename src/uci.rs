@@ -2,6 +2,8 @@ use std::{io::stdin, str::SplitAsciiWhitespace};
 
 use crate::search::{Limit, Manager};
 
+const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 pub struct Uci {
   searcher: Manager,
   position_fen: String,
@@ -11,7 +13,7 @@ impl Uci {
   pub fn new() -> Uci {
     Uci {
       searcher: Manager::new(),
-      position_fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string(),
+      position_fen: STARTPOS.to_string(),
     }
   }
 
@@ -48,6 +50,12 @@ impl Uci {
     match tokens.next().unwrap() {
       "fen" => {
         self.position_fen = String::new();
+        while let Some(a) = tokens.next() {
+          self.position_fen += &(a.to_owned() + " ");
+        }
+      }
+      "startpos" => {
+        self.position_fen = STARTPOS.to_string();
         while let Some(a) = tokens.next() {
           self.position_fen += &(a.to_owned() + " ");
         }
