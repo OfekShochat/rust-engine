@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::{collections::HashMap, time::Instant};
 
-use chess::{Board, BoardStatus, ChessMove, Color, MoveGen};
+use chess::{Board, BoardStatus, ChessMove, Color, MoveGen, Piece};
 
 use crate::movepick::MovePicker;
 use crate::psqt::PSQT;
@@ -216,6 +216,11 @@ impl SearchWorker {
     let captures: &chess::BitBoard = board.color_combined(!board.side_to_move());
     moves.set_iterator_mask(*captures);
     for m in moves {
+      if self.get_piece_value(board.piece_on(m.get_dest()).unwrap()) + stand_pat + 40 <= alpha
+         && board.piece_on(m.get_source()).unwrap() != Piece::Pawn {
+        continue;
+      }
+
       self.nodes += 1;
       let b = board.make_move_new(m);
       let score = -self.quiescence(&b, -beta, -alpha, curr_depth + 1);
@@ -248,6 +253,17 @@ impl SearchWorker {
       } else {
         1
       }
+  }
+
+  fn get_piece_value(&self, piece: Piece) -> i32 {
+    match piece {
+      Piece::Bishop => 340,
+      Piece::Knight => 320,
+      Piece::Pawn => 100,
+      Piece::Queen => 900,
+      Piece::Rook => 500,
+      _ => unreachable!(),
+    }
   }
 
   fn lock_tt(&mut self) -> MutexGuard<'_, HashMap<u64, TTEntry>> {
