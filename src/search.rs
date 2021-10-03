@@ -194,7 +194,7 @@ impl SearchWorker {
           if depth > reductions {
             reductions as u8
           } else {
-            0
+            depth - 1
           },
         curr_depth + 1,
       );
