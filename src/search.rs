@@ -164,6 +164,12 @@ impl SearchWorker {
       }
     }
 
+    let static_eval = self.evaluate(&board);
+    if curr_depth < 7
+       && static_eval - 175 * curr_depth / 2 >= beta {
+      return static_eval;
+    }
+
     let moves = MoveGen::new_legal(&board);
     let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()));
     let mut best_move = ChessMove::default();
