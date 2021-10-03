@@ -200,7 +200,7 @@ impl SearchWorker {
         TTEntry {
           mov: best_move,
           score: alpha,
-          depth,
+          depth: curr_depth as u8,
         },
       );
     }
