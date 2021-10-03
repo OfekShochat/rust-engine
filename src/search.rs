@@ -91,8 +91,8 @@ impl Manager {
 }
 
 pub struct SearchWorker {
-  pub nodes: usize,
-  pub seld_depth: i32,
+  nodes: usize,
+  seld_depth: usize,
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
   best_move: ChessMove,
   lim: Limit,
@@ -157,17 +157,13 @@ impl SearchWorker {
       _ => {}
     }
     if depth <= 0 {
-      if board.checkers().popcnt() != 0 {
-        return self.quiescence(&board, alpha, beta, curr_depth);
-      }
+      return self.quiescence(&board, alpha, beta, curr_depth);
     }
 
-    {
-      let static_eval = self.evaluate(&board);
-      if curr_depth < 7
-        && static_eval - 175 * curr_depth / 2 >= beta {
-        return static_eval;
-      }
+    let static_eval = self.evaluate(&board);
+    if curr_depth < 7
+      && static_eval - 175 * curr_depth / 2 >= beta {
+      return static_eval;
     }
 
     let moves = MoveGen::new_legal(&board);
@@ -208,7 +204,7 @@ impl SearchWorker {
   }
 
   fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, curr_depth: i32) -> i32 {
-    self.seld_depth = self.seld_depth.max(curr_depth);
+    self.seld_depth = self.seld_depth.max(curr_depth as usize);
     let stand_pat: i32 = self.evaluate(board);
 
     if stand_pat >= beta {
