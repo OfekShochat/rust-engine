@@ -52,19 +52,22 @@ impl Limit {
 
 pub struct Manager {
   transpositions: Arc<Mutex<HashMap<u64, TTEntry>>>,
+  killers: Arc<Mutex<[[ChessMove; 2]; 100]>>,
 }
 
 impl Manager {
   pub fn new() -> Manager {
     Manager {
       transpositions: Arc::new(Mutex::new(HashMap::with_capacity(1000))),
+      killers: Arc::new(Mutex::new([[ChessMove::default(); 2]; 100]))
     }
   }
 
   pub fn start(&self, pos: String, lim: Limit) {
     self.start_others(pos.clone(), lim);
-    let t = Arc::clone(&self.transpositions);
-    let mut s = SearchWorker::new(t, lim);
+    let tt = Arc::clone(&self.transpositions);
+    let killers = Arc::clone(&self.killers);
+    let mut s = SearchWorker::new(tt, killers, lim);
     s.iterative_deepening::<true>(
       chess::Board::from_str(pos.as_str()).unwrap(),
       -INF,
@@ -75,10 +78,11 @@ impl Manager {
 
   fn start_others(&self, pos: String, lim: Limit) {
     for _ in 0..1 {
-      let t = Arc::clone(&self.transpositions);
+      let tt = Arc::clone(&self.transpositions);
+      let killers = Arc::clone(&self.killers);
       let pos = pos.clone();
       thread::spawn(move || {
-        let mut s = SearchWorker::new(t, lim);
+        let mut s = SearchWorker::new(tt, killers, lim);
         s.iterative_deepening::<false>(
           chess::Board::from_str(pos.as_str()).unwrap(),
           -INF,
@@ -94,16 +98,18 @@ pub struct SearchWorker {
   nodes: usize,
   seld_depth: usize,
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
+  killers: Arc<Mutex<[[ChessMove; 2]; 100]>>,
   best_move: ChessMove,
   lim: Limit,
 }
 
 impl SearchWorker {
-  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>, lim: Limit) -> SearchWorker {
+  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>, killers: Arc<Mutex<[[ChessMove; 2]; 100]>>, lim: Limit) -> SearchWorker {
     SearchWorker {
       nodes: 0,
       seld_depth: 0,
       tt,
+      killers,
       best_move: ChessMove::default(),
       lim,
     }
@@ -169,7 +175,8 @@ impl SearchWorker {
     let mut range_strength: u8 = 0;
 
     let moves = MoveGen::new_legal(&board);
-    let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()));
+    let mut killers = self.lock_killers()[curr_depth as usize];
+    let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()), killers);
     let mut best_move = ChessMove::default();
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
@@ -203,6 +210,10 @@ impl SearchWorker {
         alpha = score
       }
       if score >= beta {
+        if board.color_on(m.get_dest()).is_none() {
+          killers[0] = killers[1];
+          killers[0] = m;
+        }
         return beta;
       }
 
@@ -210,6 +221,8 @@ impl SearchWorker {
         return self.evaluate(&board);
       }
     }
+
+    self.killers.lock().unwrap()[curr_depth as usize] = killers;
 
     if best_move != ChessMove::default() {
       self.lock_tt().insert(
@@ -292,5 +305,9 @@ impl SearchWorker {
 
   fn lock_tt(&mut self) -> MutexGuard<'_, HashMap<u64, TTEntry>> {
     self.tt.lock().unwrap()
+  }
+
+  fn lock_killers(&mut self) -> MutexGuard<'_, [[ChessMove; 2]; 100]> {
+    self.killers.lock().unwrap()
   }
 }
