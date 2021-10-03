@@ -1,4 +1,7 @@
-use std::{io::stdin, str::{FromStr, SplitAsciiWhitespace}};
+use std::{
+  io::stdin,
+  str::{FromStr, SplitAsciiWhitespace},
+};
 
 use chess::{Board, ChessMove};
 
@@ -61,11 +64,11 @@ impl Uci {
       _ => {}
     }
   }
-  
+
   fn parse_fen(&mut self, tokens: &mut SplitAsciiWhitespace) {
     while let Some(a) = tokens.next() {
       if a == "moves" {
-        break
+        break;
       }
       self.position_fen += &(a.to_owned() + " ");
     }

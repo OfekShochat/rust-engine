@@ -161,8 +161,7 @@ impl SearchWorker {
     }
 
     let static_eval = self.evaluate(&board);
-    if curr_depth < 7
-      && static_eval - 175 * curr_depth / 2 >= beta {
+    if curr_depth < 7 && static_eval - 175 * curr_depth / 2 >= beta {
       return static_eval;
     }
 
@@ -175,7 +174,19 @@ impl SearchWorker {
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search::<false>(b, -beta, -alpha, depth - 1 - if depth > reductions { reductions as u8 } else { 0 }, curr_depth + 1);
+      let score = -self.search::<false>(
+        b,
+        -beta,
+        -alpha,
+        depth -
+          1 -
+          if depth > reductions {
+            reductions as u8
+          } else {
+            0
+          },
+        curr_depth + 1,
+      );
 
       if range_strength < 3 && static_eval - score < 30 {
         range_strength += 1;
@@ -228,8 +239,9 @@ impl SearchWorker {
     let captures: &chess::BitBoard = board.color_combined(!board.side_to_move());
     moves.set_iterator_mask(*captures);
     for m in moves {
-      if self.get_piece_value(board.piece_on(m.get_dest()).unwrap()) + stand_pat + 40 <= alpha
-         && board.piece_on(m.get_source()).unwrap() != Piece::Pawn {
+      if self.get_piece_value(board.piece_on(m.get_dest()).unwrap()) + stand_pat + 40 <= alpha &&
+        board.piece_on(m.get_source()).unwrap() != Piece::Pawn
+      {
         continue;
       }
 
