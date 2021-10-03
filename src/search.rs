@@ -26,11 +26,19 @@ pub struct Limit {
 
 impl Limit {
   pub fn timed(time: u128) -> Limit {
-    Limit { time, depth: 1000, started: Instant::now() }
+    Limit {
+      time,
+      depth: 1000,
+      started: Instant::now(),
+    }
   }
 
   pub fn depthed(depth: i32) -> Limit {
-    Limit { time: 10000000, depth, started: Instant::now() }
+    Limit {
+      time: 10000000,
+      depth,
+      started: Instant::now(),
+    }
   }
 
   pub fn check(&mut self, depth: i32) -> bool {
@@ -123,7 +131,7 @@ impl SearchWorker {
         );
       }
       if self.lim.check(d.into()) {
-        break
+        break;
       }
     }
     if MAIN {

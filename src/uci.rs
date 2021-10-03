@@ -21,18 +21,34 @@ impl Uci {
       stdin().read_line(&mut buf).unwrap();
       let mut tokens = buf.split_ascii_whitespace();
       match tokens.next() {
-        Some("go") => self.searcher.start(self.position_fen.clone(), Limit::timed(10000)),
+        Some("go") => self.go(&mut tokens),
         Some("position") => self.position(&mut tokens),
         _ => eprintln!("invalid command"),
       }
     }
   }
 
-  fn position(&mut self, buf: &mut SplitAsciiWhitespace<'_>) {
-    match buf.next().unwrap() {
+  fn go(&mut self, tokens: &mut SplitAsciiWhitespace) {
+    match tokens.next() {
+      Some("time") => self.searcher.start(
+        self.position_fen.clone(),
+        Limit::timed(tokens.next().unwrap().parse().unwrap()),
+      ),
+      Some("depth") => self.searcher.start(
+        self.position_fen.clone(),
+        Limit::depthed(tokens.next().unwrap().parse().unwrap()),
+      ),
+      _ => self
+        .searcher
+        .start(self.position_fen.clone(), Limit::timed(360000)),
+    }
+  }
+
+  fn position(&mut self, tokens: &mut SplitAsciiWhitespace) {
+    match tokens.next().unwrap() {
       "fen" => {
         self.position_fen = String::new();
-        while let Some(a) = buf.next() {
+        while let Some(a) = tokens.next() {
           self.position_fen += &(a.to_owned() + " ");
         }
       }
