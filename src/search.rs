@@ -96,6 +96,7 @@ pub struct SearchWorker {
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
   killers: [[ChessMove; 2]; 100],
   best_move: ChessMove,
+  temp: ChessMove,
   lim: Limit,
 }
 
@@ -110,6 +111,7 @@ impl SearchWorker {
       tt,
       killers: [[ChessMove::default(); 2]; 100],
       best_move: ChessMove::default(),
+      temp: ChessMove::default(),
       lim,
     }
   }
@@ -126,6 +128,7 @@ impl SearchWorker {
     for d in 1..depth {
       let start_depth = Instant::now();
       value = self.search::<true, false>(board, alpha, beta, d, 0);
+      self.best_move = self.temp;
       if MAIN {
         println!(
           "info depth {} seldepth {} score cp {} nodes {} nps {} time {} pv {}",
@@ -223,7 +226,7 @@ impl SearchWorker {
 
       if score > alpha {
         if ROOT {
-          self.best_move = m;
+          self.temp = m;
         }
         best_move = m;
         alpha = score
