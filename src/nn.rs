@@ -1,5 +1,7 @@
 use packed_simd::f32x4;
 
+use net::*;
+
 fn dot(a: &[f32], b: &[f32]) -> f32 {
   assert_eq!(a.len(), b.len());
   assert!(a.len() % 4 == 0);
@@ -12,8 +14,8 @@ fn dot(a: &[f32], b: &[f32]) -> f32 {
     .sum()
 }
 
-struct Net {
-  w1: [[f32; 718]; 256],
+pub struct Net {
+  w1: [[f32; 768]; 256],
   w2: [[f32; 256]; 128],
   w3: [[f32; 128]; 32],
   w4: [[f32; 32]; 1],
@@ -24,7 +26,7 @@ struct Net {
 }
 
 impl Net {
-  pub fn new(w1: [[f32; 718]; 256],
+  pub fn new(w1: [[f32; 768]; 256],
              w2: [[f32; 256]; 128],
              w3: [[f32; 128]; 32],
              w4: [[f32; 32]; 1],
@@ -36,7 +38,11 @@ impl Net {
     Net { w1, w2, w3, w4, b1, b2, b3, b4 }
   }
 
-  pub fn forward(&self, inputs: [f32; 718]) -> f32 {
+  pub fn from_file() -> Net {
+    Net::new(FC0_WEIGHT, FC1_WEIGHT, FC2_WEIGHT, FC3_WEIGHT, FC0_BIAS, FC1_BIAS, FC2_BIAS, FC3_BIAS)
+  }
+
+  pub fn forward(&self, inputs: [f32; 768]) -> f32 {
     let mut b = self.b1.clone();
     for w in 0..self.w1.len() {
       b[w] += dot(&inputs, &self.w1[w]);
