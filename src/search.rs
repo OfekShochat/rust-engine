@@ -8,7 +8,8 @@ use chess::{Board, BoardStatus, ChessMove, Color, MoveGen, Piece};
 use crate::movepick::MovePicker;
 use crate::psqt::PSQT;
 
-pub const INF: i32 = 10000;
+const INF: i32 = 10000;
+const MAX_PLY: u8 = 100; 
 
 #[derive(Clone, Copy)]
 pub struct TTEntry {
@@ -28,7 +29,7 @@ impl Limit {
   pub fn timed(time: u128) -> Limit {
     Limit {
       time,
-      depth: 100,
+      depth: MAX_PLY,
       started: Instant::now(),
     }
   }
@@ -69,7 +70,7 @@ impl Manager {
       chess::Board::from_str(pos.as_str()).unwrap(),
       -INF,
       INF,
-      100,
+      MAX_PLY,
     );
   }
 
@@ -83,7 +84,7 @@ impl Manager {
           chess::Board::from_str(pos.as_str()).unwrap(),
           -INF,
           INF,
-          100,
+          MAX_PLY,
         );
       });
     }
@@ -94,7 +95,7 @@ pub struct SearchWorker {
   nodes: usize,
   seld_depth: usize,
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
-  killers: [[ChessMove; 2]; 100],
+  killers: [[ChessMove; 2]; MAX_PLY as usize],
   best_move: ChessMove,
   temp: ChessMove,
   lim: Limit,
@@ -109,7 +110,7 @@ impl SearchWorker {
       nodes: 0,
       seld_depth: 0,
       tt,
-      killers: [[ChessMove::default(); 2]; 100],
+      killers: [[ChessMove::default(); 2]; MAX_PLY as usize],
       best_move: ChessMove::default(),
       temp: ChessMove::default(),
       lim,
