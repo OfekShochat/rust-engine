@@ -5,7 +5,6 @@ pub mod psqt;
 mod movepick;
 mod search;
 mod uci;
-mod simd;
 mod nn;
 
 fn main() {
