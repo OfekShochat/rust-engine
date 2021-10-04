@@ -47,18 +47,32 @@ impl Net {
     for w in 0..self.w1.len() {
       b[w] += dot(&inputs, &self.w1[w]);
     }
+    self.relu(&mut b);
+
     let mut b = self.b2.clone();
     for w in 0..self.w2.len() {
       b[w] += dot(&inputs, &self.w2[w]);
     }
+    self.relu(&mut b);
+
     let mut b = self.b3.clone();
     for w in 0..self.w3.len() {
       b[w] += dot(&inputs, &self.w3[w]);
     }
+    self.relu(&mut b);
+
     let mut b = self.b4.clone();
     for w in 0..self.w4.len() {
       b[w] += dot(&inputs, &self.w4[w]);
     }
-    unsafe { *b.get_unchecked(0) }
+    unsafe { 1.0 / (1.0 + (-*b.get_unchecked(0)).exp()) }
+  }
+
+  fn relu(&self, a: &mut [f32]) {
+    for i in 0..a.len() {
+      if a[i] > 0.0 {
+        a[i] = 0.0
+      }
+    }
   }
 }
