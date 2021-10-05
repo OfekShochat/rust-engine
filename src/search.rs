@@ -6,6 +6,7 @@ use std::{collections::HashMap, time::Instant};
 use chess::{Board, BoardStatus, ChessMove, Color, MoveGen, Piece};
 
 use crate::movepick::MovePicker;
+use crate::nn::Net;
 use crate::psqt::PSQT;
 
 const INF: i32 = 10000;
@@ -75,7 +76,7 @@ impl Manager {
   }
 
   fn start_others(&self, pos: String, lim: Limit) {
-    for _ in 0..1 {
+    for _ in 0..0 {
       let tt = Arc::clone(&self.transpositions);
       let pos = pos.clone();
       thread::spawn(move || {
@@ -99,6 +100,7 @@ pub struct SearchWorker {
   best_move: ChessMove,
   temp: ChessMove,
   lim: Limit,
+  net: Net,
 }
 
 impl SearchWorker {
@@ -114,6 +116,7 @@ impl SearchWorker {
       best_move: ChessMove::default(),
       temp: ChessMove::default(),
       lim,
+      net: Net::from_file(),
     }
   }
 
@@ -262,7 +265,7 @@ impl SearchWorker {
 
   fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, curr_depth: i32) -> i32 {
     self.seld_depth = self.seld_depth.max(curr_depth as usize);
-    let stand_pat: i32 = self.evaluate(board);
+    let stand_pat = self.net.eval(board);
 
     if stand_pat >= beta {
       return beta;

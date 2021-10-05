@@ -19,7 +19,7 @@ class Set(IterableDataset):
     worker_info = torch.utils.data.get_worker_info()
     worker_id = worker_info.id
 
-    f = open(f"./data/run3/{worker_id+8}.txt", "r").readlines()
+    f = open(f"./data/run3/{worker_id+2}.txt", "r").readlines()
     per_worker = int(ceil(len(f) / float(worker_info.num_workers)))
     iter_start = worker_id * per_worker
     iter_end = min(iter_start + per_worker, len(f))
@@ -86,13 +86,13 @@ def main():
   net = NN().float().cuda()
 
   data = Set()
-  loader = DataLoader(data, batch_size=1024, pin_memory=True, num_workers=4)
+  loader = DataLoader(data, batch_size=1024, pin_memory=True, num_workers=8)
   total = 0.0
-  for i, (x, y) in enumerate(loader):
-    total += net.train_step(x.cuda(), y.cuda())
-    if i % 1000 == 999:
-      print(f"step {i + 1} loss {total / 1000}")
-      total = 0.0
+  for e in range(20):
+    for i, (x, y) in enumerate(loader):
+      total += net.train_step(x.cuda(), y.cuda())
+    print(f"epoch {e + 1} loss {total / (i+1)}")
+    total = 0.0
   net.save()
 
 if __name__ == "__main__":

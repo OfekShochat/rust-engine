@@ -1,3 +1,4 @@
+use chess::Board;
 use packed_simd::f32x4;
 
 use net::*;
@@ -42,30 +43,45 @@ impl Net {
     Net::new(FC0_WEIGHT, FC1_WEIGHT, FC2_WEIGHT, FC3_WEIGHT, FC0_BIAS, FC1_BIAS, FC2_BIAS, FC3_BIAS)
   }
 
-  pub fn forward(&self, inputs: [f32; 768]) -> f32 {
+  pub fn eval(&self, board: &Board) -> i32 {
+    let mut inputs = [0.0; 768];
+    for s in chess::ALL_SQUARES {
+      let color = board.color_on(s);
+      let piece = board.piece_on(s);
+
+      match color {
+        Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
+        Some(chess::Color::Black) => inputs[piece.unwrap().to_index() + 5] = 1.0,
+        None => continue,
+      }
+    }
+    self.forward(inputs)
+  }
+
+  fn forward(&self, inputs: [f32; 768]) -> i32 {
     let mut b = self.b1.clone();
     for w in 0..self.w1.len() {
       b[w] += dot(&inputs, &self.w1[w]);
     }
     self.relu(&mut b);
 
-    let mut b = self.b2.clone();
+    let mut c = self.b2.clone();
     for w in 0..self.w2.len() {
-      b[w] += dot(&inputs, &self.w2[w]);
+      c[w] += dot(&b, &self.w2[w]);
     }
-    self.relu(&mut b);
+    self.relu(&mut c);
 
-    let mut b = self.b3.clone();
+    let mut d = self.b3.clone();
     for w in 0..self.w3.len() {
-      b[w] += dot(&inputs, &self.w3[w]);
+      d[w] += dot(&c, &self.w3[w]);
     }
-    self.relu(&mut b);
+    self.relu(&mut d);
 
-    let mut b = self.b4.clone();
+    let mut e = self.b4.clone();
     for w in 0..self.w4.len() {
-      b[w] += dot(&inputs, &self.w4[w]);
+      e[w] += dot(&d, &self.w4[w]);
     }
-    unsafe { 1.0 / (1.0 + (-*b.get_unchecked(0)).exp()) }
+    unsafe { (*e.get_unchecked(0) * 400.0) as i32 }
   }
 
   fn relu(&self, a: &mut [f32]) {
