@@ -1,0 +1,7 @@
+workers = 8
+
+[training]
+output_path = "net.rs"
+report_freq = 100
+epochs = 10
+batch_size = 16384

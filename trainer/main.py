@@ -1,12 +1,12 @@
 import torch
 from torch.functional import Tensor
-import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader, IterableDataset
 import torch.nn.functional as F
 from chess import BLACK, BaseBoard, SQUARES
-from math import ceil
 from numpy import array
+from random import choice
+from sys import exit as sys_exit, argv
 
 def cross_entropy_loss(x, p):
   return torch.mean(-(p*F.logsigmoid(x) + (1-p)*F.logsigmoid(-x)))
@@ -16,16 +16,16 @@ class Set(IterableDataset):
     super(Set, self).__init__()
 
   def sample_iter(self) -> None:
-    worker_info = torch.utils.data.get_worker_info()
-    worker_id = worker_info.id
+    from glob import glob
+    files = glob("./data/run3/*.txt")
+    f = open(choice(files), "r").readlines()
+    for i in f:
+      try:
+        a = i.split("|")
+        yield self.build(a[0][:a[0].find(" ")], "w" in a[0]), array((int(a[1]) + 0.5 * int(a[2])) / 1024)
+      except:
+        pass
 
-    f = open(f"./data/run3/{worker_id+2}.txt", "r").readlines()
-    per_worker = int(ceil(len(f) / float(worker_info.num_workers)))
-    iter_start = worker_id * per_worker
-    iter_end = min(iter_start + per_worker, len(f))
-    for i in range(iter_start, iter_end):
-      a = f[i].split("|")
-      yield self.build(a[0][:a[0].find(" ")], "w" in a[0]), array((int(a[1]) + 0.5 * int(a[2])) / 1024)
 
   def build(self, s, flip) -> list[list[int]]:
     a = [0]*64*12
@@ -53,13 +53,14 @@ class NN(nn.Module):
     self.fc2 = nn.Linear(128, 32)
     self.fc3 = nn.Linear(32, 1)
 
-    self.optimizer = optim.Adadelta(self.parameters(), 0.01)
+    from adabelief_pytorch import AdaBelief
+    self.optimizer = AdaBelief(self.parameters(), lr=1e-3, eps=1e-16, betas=(0.9,0.999), weight_decouple=True, rectify=False, print_change_log=False)
 
   def forward(self, x) -> Tensor:
     x = F.relu(self.fc0(x))
     x = F.relu(self.fc1(x))
     x = F.relu(self.fc2(x))
-    x = torch.sigmoid(self.fc3(x))
+    x = self.fc3(x)
     return x
 
   def train_step(self, inputs, y) -> float:
@@ -73,8 +74,10 @@ class NN(nn.Module):
 
     return loss
 
-  def save(self) -> None:
-    f = open("net.rs", "a+")
+  def save(self, path) -> None:
+    open(path, "w+").write("")
+    f = open(path, "a+")
+    f.write("#[rustfmt::skip]\n")
     for (name, param) in self.named_parameters():
       name = name.replace(".", "_")
       try:
@@ -82,18 +85,28 @@ class NN(nn.Module):
       except:
         f.write(f"pub const {name.upper()}: [f32; {len(param)}] = {param.tolist()};\n")
 
-def main():
-  net = NN().float().cuda()
+def main(train_cfg: dict, general_cfg: dict):
+  import atexit
+  def at_exit():
+    net.save("checkpoint.rs")
+  atexit.register(at_exit)
+
+  net = NN().float()
+  net.cuda()
 
   data = Set()
-  loader = DataLoader(data, batch_size=1024, pin_memory=True, num_workers=8)
+  loader = DataLoader(data, batch_size=train_cfg.get("batch_size"), pin_memory=True, num_workers=general_cfg.get("workers"))
   total = 0.0
-  for e in range(20):
+  for e in range(train_cfg.get("epochs")):
     for i, (x, y) in enumerate(loader):
       total += net.train_step(x.cuda(), y.cuda())
+      if i % train_cfg.get("report_freq") == train_cfg.get("report_freq") - 1:
+        print(f"step {i + 1} loss {total / (i+1)}")
     print(f"epoch {e + 1} loss {total / (i+1)}")
     total = 0.0
-  net.save()
+  sys_exit()
 
 if __name__ == "__main__":
-  main()
+  from toml import load
+  config = load(argv[1])
+  main(config.get("training"), config)
