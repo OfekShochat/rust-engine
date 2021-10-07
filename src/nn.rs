@@ -1,4 +1,4 @@
-use chess::Board;
+use chess::{Board, Color};
 use packed_simd::f32x4;
 
 use net::*;
@@ -24,6 +24,7 @@ pub struct Net {
   b2: [f32; 128],
   b3: [f32; 32],
   b4: [f32; 1],
+  accumulator: [f32; 256],
 }
 
 impl Net {
@@ -36,7 +37,7 @@ impl Net {
              b3: [f32; 32],
              b4: [f32; 1],
             ) -> Net {
-    Net { w1, w2, w3, w4, b1, b2, b3, b4 }
+    Net { w1, w2, w3, w4, b1, b2, b3, b4, accumulator: [0.0; 256] }
   }
 
   pub fn from_file() -> Net {
@@ -45,25 +46,43 @@ impl Net {
 
   pub fn eval(&self, board: &Board) -> i32 {
     let mut inputs = [0.0; 768];
-    for s in chess::ALL_SQUARES {
-      let color = board.color_on(s);
-      let piece = board.piece_on(s);
+    if board.side_to_move() == Color::White {
+      for s in chess::ALL_SQUARES {
+        let color = board.color_on(s);
+        let piece = board.piece_on(s);
+  
+        match color {
+          Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
+          Some(chess::Color::Black) => inputs[piece.unwrap().to_index() + 5] = 1.0,
+          None => continue,
+        }
+      }
+    } else {
+      for s in chess::ALL_SQUARES.iter().rev() {
+        let color = board.color_on(*s);
+        let piece = board.piece_on(*s);
 
-      match color {
-        Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
-        Some(chess::Color::Black) => inputs[piece.unwrap().to_index() + 5] = 1.0,
-        None => continue,
+        match color {
+          Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
+          Some(chess::Color::Black) => inputs[piece.unwrap().to_index() + 5] = 1.0,
+          None => continue,
+        }
       }
     }
+
     self.forward(inputs)
   }
 
   fn forward(&self, inputs: [f32; 768]) -> i32 {
     let mut b = self.b1.clone();
-    for w in 0..self.w1.len() {
-      b[w] += dot(&inputs, &self.w1[w]);
+    if self.accumulator == [0.0; 256] {
+      for w in 0..self.w1.len() {
+        b[w] += dot(&inputs, &self.w1[w]);
+      }
+      self.relu(&mut b);
+    } else {
+      
     }
-    self.relu(&mut b);
 
     let mut c = self.b2.clone();
     for w in 0..self.w2.len() {
