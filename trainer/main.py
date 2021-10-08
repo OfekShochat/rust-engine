@@ -7,6 +7,9 @@ from chess import BLACK, BaseBoard, SQUARES
 from numpy import array
 from random import choice
 from sys import exit as sys_exit, argv
+from os import path
+import wandb
+wandb.init("rust-engine")
 
 def cross_entropy_loss(x, p):
   return torch.mean(-(p*F.logsigmoid(x) + (1-p)*F.logsigmoid(-x)))
@@ -88,20 +91,32 @@ class NN(nn.Module):
 def main(train_cfg: dict, general_cfg: dict):
   import atexit
   def at_exit():
-    net.save("checkpoint.rs")
+    net.save(general_cfg.get("output_path"))
   atexit.register(at_exit)
 
   net = NN().float()
+  if path.exists("checkpoint.pt"):
+    net.load_state_dict(torch.load("checkpoint.pt"))
+    print("Loaded network from checkpoint.")
+
   net.cuda()
 
+  total = 0.0
   data = Set()
   loader = DataLoader(data, batch_size=train_cfg.get("batch_size"), pin_memory=True, num_workers=general_cfg.get("workers"))
-  total = 0.0
   for e in range(train_cfg.get("epochs")):
     for i, (x, y) in enumerate(loader):
       total += net.train_step(x.cuda(), y.cuda())
+
       if i % train_cfg.get("report_freq") == train_cfg.get("report_freq") - 1:
         print(f"step {i + 1} loss {total / (i+1)}")
+        wandb.log({"loss": total / (i+1), "step": i + 1})
+
+    if e % train_cfg.get("save_freq") == train_cfg.get("save_freq") - 1:
+      net.save("checkpoint.rs")
+      torch.save(net.state_dict(), "checkpoint.pt")
+      print("Saved weights and checkpoint.")
+
     print(f"epoch {e + 1} loss {total / (i+1)}")
     total = 0.0
   sys_exit()
