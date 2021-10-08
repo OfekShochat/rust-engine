@@ -1,3 +1,4 @@
+#![feature(array_zip)]
 extern crate chess;
 extern crate packed_simd;
 

@@ -25,6 +25,7 @@ pub struct Net {
   b3: [f32; 32],
   b4: [f32; 1],
   accumulator: [f32; 256],
+  board_rep: [f32; 768],
 }
 
 impl Net {
@@ -37,14 +38,14 @@ impl Net {
              b3: [f32; 32],
              b4: [f32; 1],
             ) -> Net {
-    Net { w1, w2, w3, w4, b1, b2, b3, b4, accumulator: [0.0; 256] }
+    Net { w1, w2, w3, w4, b1, b2, b3, b4, accumulator: [0.0; 256], board_rep: [0.0; 768] }
   }
 
   pub fn from_file() -> Net {
     Net::new(FC0_WEIGHT, FC1_WEIGHT, FC2_WEIGHT, FC3_WEIGHT, FC0_BIAS, FC1_BIAS, FC2_BIAS, FC3_BIAS)
   }
 
-  pub fn eval(&self, board: &Board) -> i32 {
+  pub fn eval(&mut self, board: &Board) -> i32 {
     let mut inputs = [0.0; 768];
     if board.side_to_move() == Color::White {
       for s in chess::ALL_SQUARES {
@@ -70,18 +71,33 @@ impl Net {
       }
     }
 
+    self.board_rep = inputs;
     self.forward(inputs)
   }
 
-  fn forward(&self, inputs: [f32; 768]) -> i32 {
+  fn forward(&mut self, inputs: [f32; 768]) -> i32 {
     let mut b = self.b1.clone();
     if self.accumulator == [0.0; 256] {
       for w in 0..self.w1.len() {
         b[w] += dot(&inputs, &self.w1[w]);
       }
       self.relu(&mut b);
+      self.accumulator = b;
     } else {
-      
+      let mut accumelator = self.accumulator;
+      let mut index = 0;
+      for (curr, acc) in inputs.zip(self.board_rep) {
+        if curr == 1.0 && acc == 0.0 {
+          for i in self.w1 {
+            accumelator[index] += i[index];
+          }
+        } else if curr == 0.0 && acc == 1.0 {
+          for i in self.w1 {
+            accumelator[index] -= i[index];
+          }
+        }
+        index += 1;
+      }
     }
 
     let mut c = self.b2.clone();
