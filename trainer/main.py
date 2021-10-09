@@ -94,12 +94,12 @@ def main(train_cfg: dict, general_cfg: dict):
     net.save(general_cfg.get("output_path"))
   atexit.register(at_exit)
 
-  net = NN().float()
+  net = NN()
   if path.exists("checkpoint.pt"):
     net.load_state_dict(torch.load("checkpoint.pt"))
     print("Loaded network from checkpoint.")
 
-  net.cuda()
+  net = net.cuda().float()
 
   total = 0.0
   data = Set()
@@ -110,7 +110,7 @@ def main(train_cfg: dict, general_cfg: dict):
 
       if i % train_cfg.get("report_freq") == train_cfg.get("report_freq") - 1:
         print(f"step {i + 1} loss {total / (i+1)}")
-        wandb.log({"loss": total / (i+1), "step": i + 1})
+        wandb.log({"loss": total / (i+1)})
 
     if e % train_cfg.get("save_freq") == train_cfg.get("save_freq") - 1:
       net.save("checkpoint.rs")
