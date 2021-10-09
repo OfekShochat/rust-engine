@@ -266,7 +266,7 @@ impl SearchWorker {
   fn quiescence(&mut self, board: &Board, mut alpha: i32, beta: i32, curr_depth: i32) -> i32 {
     self.seld_depth = self.seld_depth.max(curr_depth as usize);
     let mut stand_pat = self.evaluate(board);
-    if stand_pat < 200 {
+    if -200 < stand_pat && stand_pat < 200 {
       stand_pat = self.net.eval(board);
     }
 
