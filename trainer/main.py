@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, IterableDataset
 import torch.nn.functional as F
 from chess import BLACK, BaseBoard, SQUARES
 from numpy import array
-from random import choice
+from random import choice, shuffle
 from sys import exit as sys_exit, argv
 from os import path
 import wandb
@@ -22,7 +22,7 @@ class Set(IterableDataset):
     from glob import glob
     files = glob("./data/run3/*.txt")
     f = open(choice(files), "r").readlines()
-    for i in f:
+    for i in shuffle(f):
       try:
         a = i.split("|")
         yield self.build(a[0][:a[0].find(" ")], "w" in a[0]), array((int(a[1]) + 0.5 * int(a[2])) / 1024)
@@ -57,7 +57,7 @@ class NN(nn.Module):
     self.fc3 = nn.Linear(32, 1)
 
     from adabelief_pytorch import AdaBelief
-    self.optimizer = AdaBelief(self.parameters(), lr=1e-3, eps=1e-16, betas=(0.9,0.999), weight_decouple=True, rectify=False, print_change_log=False)
+    self.optimizer = AdaBelief(self.parameters(), lr=1e-3, eps=1e-12, rectify=False, print_change_log=False)
 
   def forward(self, x) -> Tensor:
     x = F.relu(self.fc0(x))
@@ -92,6 +92,7 @@ def main(train_cfg: dict, general_cfg: dict):
   import atexit
   def at_exit():
     net.save(general_cfg.get("output_path"))
+    torch.save(net.state_dict(), "checkpoint.pt")
   atexit.register(at_exit)
 
   net = NN()
