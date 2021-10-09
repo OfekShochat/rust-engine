@@ -71,7 +71,6 @@ impl Net {
       }
     }
 
-    self.board_rep = inputs;
     self.forward(inputs)
   }
 
@@ -83,6 +82,7 @@ impl Net {
       }
       self.relu(&mut b);
       self.accumulator = b;
+      self.board_rep = inputs;
     } else {
       let mut accumelator = self.accumulator;
       let mut index = 0;
