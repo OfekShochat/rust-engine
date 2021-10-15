@@ -1,3 +1,10 @@
+extern crate chess;
+extern crate easy_reader;
+extern crate fastapprox;
+extern crate serde_derive;
+extern crate tch;
+extern crate toml;
+
 use chess::{Board, Color};
 use easy_reader::EasyReader;
 use fastapprox::fast::sigmoid;

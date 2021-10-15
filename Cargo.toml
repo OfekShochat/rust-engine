@@ -1,11 +1,31 @@
 [package]
 authors = ["OfekShochat o@shoch.at"]
-name = "ce"
+name = "chessengine"
 version = "0.0.1"
 
 [dependencies]
-chess = "3.2.0"
-packed_simd = { version = "0.3.4", package = "packed_simd_2" }
+chess = { version = "3.2.0", optional = true }
+packed_simd = { version = "0.3.4", package = "packed_simd_2", optional = true }
+tch = {version = "*", optional = true }
+easy_reader = { version = "*", optional = true }
+fastapprox = { version = "*", optional = true }
+toml = { version = "*", optional = true }
+serde_derive = { version = "*", optional = true }
+serde = { version = "*", optional = true }
 
-[profile.release]
-lto = true
+[features]
+engine = ["chess", "packed_simd"]
+trainer = ["chess", "tch", "easy_reader", "fastapprox", "toml", "serde_derive", "serde"]
+
+[[bin]]
+name = "engine"
+path = "engine/main.rs"
+required-features = ["engine"]
+
+[[bin]]
+name = "trainer"
+path = "rust-trainer/src/main.rs"
+required-features = ["trainer"]
+
+[profile.release.build-override]
+opt-level = 3

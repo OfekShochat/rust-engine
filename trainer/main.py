@@ -3,9 +3,11 @@ from torch.functional import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader, IterableDataset
 import torch.nn.functional as F
+from torch import optim
+from torch.optim.lr_scheduler import StepLR
 from chess import BLACK, BaseBoard, SQUARES
 from numpy import array
-from random import choice, shuffle
+from random import randint
 from sys import exit as sys_exit, argv
 from os import path
 import wandb
@@ -18,30 +20,30 @@ class Set(IterableDataset):
   def __init__(self) -> None:
     super(Set, self).__init__()
 
-  def sample_iter(self) -> None:
-    from glob import glob
-    files = glob("./data/run3/*.txt")
-    f = open(choice(files), "r").readlines()
-    for i in shuffle(f):
-      try:
-        a = i.split("|")
-        yield self.build(a[0][:a[0].find(" ")], "w" in a[0]), array((int(a[1]) + 0.5 * int(a[2])) / 1024)
-      except:
-        pass
-
+  def sample_iter(self):
+    worker_info = torch.utils.data.get_worker_info()
+    with open("./data_old_d8_wdl.txt") as f:
+      for _ in range(300_000_000//worker_info.num_workers):
+        try:
+          aa = randint(0, 300_000_000)
+          a = f.readline(aa)[:-1].split("|")
+          yield self.build(a[0][:a[0].find(" ")], not "w" in a[0]), array(float(a[1]) / 1024)
+        except:
+          continue
 
   def build(self, s, flip) -> list[list[int]]:
     a = [0]*64*12
-    b = BaseBoard(s)
     if flip:
-      b = b.mirror()
+      b = BaseBoard(s).mirror()
+    else:
+      b = BaseBoard(s)
     for i in SQUARES:
       p = b.piece_at(i)
       if p:
         if p.color == BLACK:
-          a[(p.piece_type + 5) * i] = 1.0
+          a[((p.piece_type + 6) % 12) * 64 + i] = 1.0
         else:
-          a[p.piece_type * i] = 1.0
+          a[(p.piece_type - 1) * 64 + i] = 1.0
     return array([a])
 
   def __iter__(self):
@@ -51,31 +53,24 @@ class Set(IterableDataset):
 class NN(nn.Module):
   def __init__(self) -> None:
     super(NN, self).__init__()
-    self.fc0 = nn.Linear(768, 256)
-    self.fc1 = nn.Linear(256, 128)
-    self.fc2 = nn.Linear(128, 32)
-    self.fc3 = nn.Linear(32, 1)
-
-    from adabelief_pytorch import AdaBelief
-    self.optimizer = AdaBelief(self.parameters(), lr=1e-3, eps=1e-12, rectify=False, print_change_log=False)
+    self.fc0 = nn.Linear(768, 128)
+    self.fc1 = nn.Linear(128, 1)
 
   def forward(self, x) -> Tensor:
-    x = F.relu(self.fc0(x))
-    x = F.relu(self.fc1(x))
-    x = F.relu(self.fc2(x))
-    x = self.fc3(x)
+    x = self.fc0(x)
+    x = F.relu(x)
+    x = self.fc1(x)
     return x
 
-  def train_step(self, inputs, y) -> float:
-    self.optimizer.zero_grad()
-
+  def train_step(self, inputs: Tensor, y: Tensor, optimizer) -> float:
     out = self(inputs.float())
-    loss = cross_entropy_loss(out, y.float())
+    loss = torch.pow(y.sigmoid() - out.sigmoid(), 2).mean()
     loss.backward()
 
-    self.optimizer.step()
+    optimizer.step()
+    optimizer.zero_grad()
 
-    return loss
+    return loss.item()
 
   def save(self, path) -> None:
     open(path, "w+").write("")
@@ -101,24 +96,31 @@ def main(train_cfg: dict, general_cfg: dict):
     print("Loaded network from checkpoint.")
 
   net = net.cuda().float()
+  from adabelief_pytorch import AdaBelief
+  optimizer = AdaBelief(net.parameters(), lr=1e-3, eps=1e-16, rectify=False, print_change_log=False)
 
   total = 0.0
   data = Set()
+  print(data.build("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", False))
   loader = DataLoader(data, batch_size=train_cfg.get("batch_size"), pin_memory=True, num_workers=general_cfg.get("workers"))
   for e in range(train_cfg.get("epochs")):
     for i, (x, y) in enumerate(loader):
-      total += net.train_step(x.cuda(), y.cuda())
+      temp = net.train_step(x.cuda(), y.cuda(), optimizer)
+      total += temp
 
       if i % train_cfg.get("report_freq") == train_cfg.get("report_freq") - 1:
-        print(f"step {i + 1} loss {total / (i+1)}")
-        wandb.log({"loss": total / (i+1)})
+        report_freq = train_cfg.get("report_freq")
+        print(f"step {i + 1} loss {total / report_freq}")
+        total = 0.0
+      wandb.log({"loss": temp})
 
     if e % train_cfg.get("save_freq") == train_cfg.get("save_freq") - 1:
       net.save("checkpoint.rs")
       torch.save(net.state_dict(), "checkpoint.pt")
       print("Saved weights and checkpoint.")
 
-    print(f"epoch {e + 1} loss {total / (i+1)}")
+    report_freq = train_cfg.get("report_freq")
+    print(f"epoch {e + 1} loss {total / (i % report_freq)}")
     total = 0.0
   sys_exit()
 

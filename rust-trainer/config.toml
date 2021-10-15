@@ -1,7 +1,0 @@
-workers = 4
-output_path = "net.rs"
-report_freq = 100
-
-[training]
-batch_size = 8096
-lr = 1e-3

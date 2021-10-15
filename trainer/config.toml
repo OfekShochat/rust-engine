@@ -1,8 +1,8 @@
-workers = 6
+workers = 8
 output_path = "net.rs"
 
 [training]
-save_freq = 2
-report_freq = 100
-epochs = 10
-batch_size = 16384
+save_freq = 10000
+report_freq = inf
+epochs = 200
+batch_size = 1024
