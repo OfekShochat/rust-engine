@@ -24,7 +24,7 @@ required-features = ["engine"]
 
 [[bin]]
 name = "trainer"
-path = "rust-trainer/src/main.rs"
+path = "rust-trainer/main.rs"
 required-features = ["trainer"]
 
 [profile.release.build-override]
