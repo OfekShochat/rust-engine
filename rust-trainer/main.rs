@@ -68,8 +68,8 @@ fn main() {
     drop(x);
     drop(y);
   }
-
-  for (name, param) in vs.variables() {}
+  println!("poop");
+  // TODO(ghostway): use protobuf to save
 }
 
 #[derive(Deserialize)]
