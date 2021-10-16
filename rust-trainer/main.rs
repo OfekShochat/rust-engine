@@ -94,7 +94,11 @@ struct Datapoint {
 impl Datapoint {
   pub fn from_string(line: String) -> Option<Datapoint> {
     let parts: Vec<&str> = line.split("|").collect();
-    let board = Board::from_str(&parts[0]).unwrap();
+    let board = Board::from_str(&parts[0]);
+    if board.is_err() {
+      return None;
+    }
+    let board = board.unwrap();
 
     let mut inputs = [0.0; 768];
     match board.side_to_move() {
@@ -139,11 +143,8 @@ fn data_worker(sender: Sender<Datapoint>) {
   let file = File::open("out.txt").unwrap();
   let mut reader = EasyReader::new(file).unwrap();
   loop {
-    let l = reader.random_line();
-    if l.is_err() || l.as_ref().unwrap().is_none() {
-      continue;
-    }
-    let dp = Datapoint::from_string(l.unwrap().unwrap());
+    let l = reader.random_line().unwrap().unwrap();
+    let dp = Datapoint::from_string(l);
     if dp.is_some() {
       sender.send(dp.unwrap()).unwrap();
     }
