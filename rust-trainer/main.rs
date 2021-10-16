@@ -143,8 +143,11 @@ fn data_worker(sender: Sender<Datapoint>) {
   let file = File::open("out.txt").unwrap();
   let mut reader = EasyReader::new(file).unwrap();
   loop {
-    let l = reader.random_line().unwrap().unwrap();
-    let dp = Datapoint::from_string(l);
+    let l = reader.random_line();
+    if l.is_err() {
+      continue;
+    }
+    let dp = Datapoint::from_string(l.unwrap().unwrap());
     if dp.is_some() {
       sender.send(dp.unwrap()).unwrap();
     }
