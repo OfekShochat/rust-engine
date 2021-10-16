@@ -14,8 +14,8 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 use std::{fs::File, str::FromStr};
-use tch::Tensor;
 use tch::{
+  Tensor,
   nn::{self, Module, OptimizerConfig},
   Device,
 };
@@ -70,7 +70,6 @@ fn main() {
     drop(y);
   }
   println!("poop");
-  // TODO(ghostway): use protobuf to save
 }
 
 #[derive(Deserialize)]
