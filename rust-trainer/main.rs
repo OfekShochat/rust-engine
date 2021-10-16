@@ -22,6 +22,7 @@ use tch::{
 use toml::from_str;
 
 const DEADLINE: u64 = 10;
+const SCALE: f32 = 1024.0;
 
 fn create_net(vs: &nn::Path) -> impl Module {
   nn::seq()
@@ -127,11 +128,12 @@ impl Datapoint {
         }
       }
     }
-    let e = parts[1].parse();
+    let e: Result<f32, _> = parts[1].parse();
     if e.is_ok() {
+      let e = e.unwrap() / SCALE;
       Some(Datapoint {
         board: inputs,
-        eval: e.unwrap(),
+        eval: e,
       })
     } else {
       None
@@ -140,7 +142,7 @@ impl Datapoint {
 }
 
 fn data_worker(sender: Sender<Datapoint>) {
-  let file = File::open("out.txt").unwrap();
+  let file = File::open("data.txt").unwrap();
   let mut reader = EasyReader::new(file).unwrap();
   loop {
     let l = reader.random_line();
