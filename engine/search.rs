@@ -10,7 +10,7 @@ use crate::nn::Net;
 use crate::psqt::PSQT;
 
 const INF: i32 = 10000;
-const MAX_PLY: u8 = 100; 
+const MAX_PLY: u8 = 100;
 
 #[derive(Clone, Copy)]
 pub struct TTEntry {
@@ -104,10 +104,7 @@ pub struct SearchWorker {
 }
 
 impl SearchWorker {
-  pub fn new(
-    tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
-    lim: Limit,
-  ) -> SearchWorker {
+  pub fn new(tt: Arc<Mutex<HashMap<u64, TTEntry>>>, lim: Limit) -> SearchWorker {
     SearchWorker {
       nodes: 0,
       seld_depth: 0,

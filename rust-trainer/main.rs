@@ -15,9 +15,8 @@ use std::thread;
 use std::time::Duration;
 use std::{fs::File, str::FromStr};
 use tch::{
-  Tensor,
   nn::{self, Module, OptimizerConfig},
-  Device,
+  Device, Tensor,
 };
 use toml::from_str;
 

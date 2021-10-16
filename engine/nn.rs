@@ -1,5 +1,3 @@
-
-
 use chess::{Board, Color};
 use packed_simd::f32x4;
 
@@ -27,12 +25,15 @@ pub struct Net {
 }
 
 impl Net {
-  pub fn new(w1: [[f32; 768]; 128],
-             w2: [[f32; 128]; 1],
-             b1: [f32; 128],
-             b2: [f32; 1],
-            ) -> Net {
-    Net { w1, w2, b1, b2, accumulator: [0.0; 128], board_rep: [0.0; 768] }
+  pub fn new(w1: [[f32; 768]; 128], w2: [[f32; 128]; 1], b1: [f32; 128], b2: [f32; 1]) -> Net {
+    Net {
+      w1,
+      w2,
+      b1,
+      b2,
+      accumulator: [0.0; 128],
+      board_rep: [0.0; 768],
+    }
   }
 
   pub fn from_file() -> Net {
@@ -45,7 +46,7 @@ impl Net {
       for s in chess::ALL_SQUARES {
         let color = board.color_on(s);
         let piece = board.piece_on(s);
-  
+
         match color {
           Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
           Some(chess::Color::Black) => inputs[piece.unwrap().to_index() + 5] = 1.0,

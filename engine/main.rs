@@ -2,10 +2,10 @@
 extern crate chess;
 extern crate packed_simd;
 
-pub mod psqt;
+mod movepick;
 pub mod net;
 pub mod nn;
-mod movepick;
+pub mod psqt;
 mod search;
 mod uci;
 
