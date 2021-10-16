@@ -10,6 +10,7 @@ use easy_reader::EasyReader;
 use fastapprox::fast::sigmoid;
 use serde_derive::Deserialize;
 use std::io::Read;
+use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -19,8 +20,9 @@ use tch::{
   Device, Tensor,
 };
 use toml::from_str;
+use std::fs;
 
-const DEADLINE: u64 = 10;
+const DEADLINE: u64 = 100;
 const SCALE: f32 = 1024.0;
 
 fn create_net(vs: &nn::Path) -> impl Module {
@@ -41,6 +43,8 @@ fn main() {
 
   let vs = nn::VarStore::new(Device::cuda_if_available());
   let net = create_net(&vs.root());
+  save(vs.variables());
+
   let mut opt = nn::AdamW::default().build(&vs, config.training.lr).unwrap();
   let mut data = Data::new(config.training.batch_size);
   data.start(config.workers);
@@ -69,6 +73,33 @@ fn main() {
     drop(y);
   }
   println!("poop");
+}
+
+fn save(variables: HashMap<String, Tensor>) {
+  let mut out = "".to_string();
+  for (name, param) in variables {
+    let input_size = match name.as_str() {
+      "fc0.weight" => 768,
+      "fc1.weight" => 128,
+      _ => 0,
+    };
+    let layer_size = match name.as_str() {
+      "fc0.weight" => 128,
+      "fc0.bias" => 128,
+      "fc1.weight" => 1,
+      "fc1.bias" => 1,
+      _ => unreachable!(),
+    };
+    let name = name.replace(".", "_").to_uppercase();
+
+    if input_size != 0 {
+      out += &format!("pub const {}: [[f32; {}]; {}] = {:?};\n", name, input_size, layer_size, Vec::<Vec<f32>>::from(param.detach().contiguous().view([-1, input_size])))
+    } else {
+      out += &format!("pub const {}: [f32; {}] = {:?};\n", name, layer_size, Vec::<Vec<f32>>::from(param.detach().contiguous()).into_iter().flatten().collect::<Vec<f32>>())
+    }
+  }
+  fs::write("poop.weights", out).expect("Couldn't open file when saving.");
+  println!("Saved weights.");
 }
 
 #[derive(Deserialize)]
