@@ -111,13 +111,13 @@ impl Datapoint {
         }
       }
       Color::Black => {
-        for s in chess::ALL_SQUARES.iter().rev() {
-          let color = board.color_on(*s);
-          let piece = board.piece_on(*s);
+        for s in chess::ALL_SQUARES {
+          let color = board.color_on(s);
+          let piece = board.piece_on(s);
 
           match color {
-            Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
-            Some(chess::Color::Black) => inputs[(piece.unwrap().to_index() + 6) % 12] = 1.0,
+            Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) % 12] = 1.0,
+            Some(chess::Color::Black) => inputs[piece.unwrap().to_index()] = 1.0,
             None => continue,
           }
         }
