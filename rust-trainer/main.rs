@@ -4,6 +4,7 @@ extern crate fastapprox;
 extern crate serde_derive;
 extern crate tch;
 extern crate toml;
+extern crate ctrlc;
 
 use chess::{Board, Color};
 use easy_reader::EasyReader;
@@ -19,8 +20,10 @@ use tch::{
   nn::{self, Module, OptimizerConfig},
   Device, Tensor,
 };
+use ctrlc::set_handler;
 use toml::from_str;
 use std::fs;
+use std::process::exit;
 
 const DEADLINE: u64 = 100;
 const SCALE: f32 = 1024.0;
@@ -43,7 +46,6 @@ fn main() {
 
   let vs = nn::VarStore::new(Device::cuda_if_available());
   let net = create_net(&vs.root());
-  save(vs.variables());
 
   let mut opt = nn::AdamW::default().build(&vs, config.training.lr).unwrap();
   let mut data = Data::new(config.training.batch_size);
@@ -51,6 +53,12 @@ fn main() {
   let mut running_loss = Tensor::of_slice(&[0.0])
     .to_device(Device::cuda_if_available())
     .detach();
+
+  let output_path = config.output_path.clone();
+  set_handler(move || {
+    save(&output_path, vs.variables());
+    exit(0);
+  }).expect("Could not setup ctrl-c handler.");
   for (step, (x, y)) in (&mut data).enumerate() {
     let loss = net.forward(&x).mse_loss(&y, tch::Reduction::Mean);
     opt.backward_step(&loss);
@@ -72,10 +80,9 @@ fn main() {
     drop(x);
     drop(y);
   }
-  println!("poop");
 }
 
-fn save(variables: HashMap<String, Tensor>) {
+fn save(output_path: &str, variables: HashMap<String, Tensor>) {
   let mut out = "".to_string();
   for (name, param) in variables {
     let input_size = match name.as_str() {
@@ -98,8 +105,8 @@ fn save(variables: HashMap<String, Tensor>) {
       out += &format!("pub const {}: [f32; {}] = {:?};\n", name, layer_size, Vec::<Vec<f32>>::from(param.detach().contiguous()).into_iter().flatten().collect::<Vec<f32>>())
     }
   }
-  fs::write("poop.weights", out).expect("Couldn't open file when saving.");
-  println!("Saved weights.");
+  fs::write(output_path, out).expect("Couldn't open file when saving.");
+  println!("Saved weights to {}.", output_path);
 }
 
 #[derive(Deserialize)]
