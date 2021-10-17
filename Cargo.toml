@@ -12,11 +12,11 @@ fastapprox = { version = "*", optional = true }
 toml = { version = "*", optional = true }
 serde_derive = { version = "*", optional = true }
 serde = { version = "*", optional = true }
-ctrlc = { version = "*", optional = true }
+graceful = { version = "*", optional = true }
 
 [features]
 engine = ["chess", "packed_simd"]
-trainer = ["chess", "tch", "easy_reader", "fastapprox", "toml", "serde_derive", "serde", "ctrlc"]
+trainer = ["chess", "tch", "easy_reader", "fastapprox", "toml", "serde_derive", "serde", "graceful"]
 
 [[bin]]
 name = "engine"
