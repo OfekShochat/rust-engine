@@ -1,4 +1,4 @@
-workers = 4
+workers = 8
 output_path = "net.rs"
 report_freq = 100
 
