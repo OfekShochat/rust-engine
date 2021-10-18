@@ -1,4 +1,4 @@
-use chess::{Board, Color};
+use chess::{Board, Color, ChessMove, Piece};
 use packed_simd::f32x4;
 
 use net::*;
@@ -22,6 +22,7 @@ pub struct Net {
   b2: [f32; 1],
   accumulator: [f32; 128],
   board_rep: [f32; 768],
+  features: Vec<(usize, usize)>
 }
 
 impl Net {
@@ -33,11 +34,28 @@ impl Net {
       b2,
       accumulator: [0.0; 128],
       board_rep: [0.0; 768],
+      features: vec![]
     }
   }
 
   pub fn from_file() -> Net {
     Net::new(FC0_WEIGHT, FC1_WEIGHT, FC0_BIAS, FC1_BIAS)
+  }
+
+  pub fn apply_move(&mut self, board: &Board, mov: ChessMove) {
+    let piece = board.piece_on(mov.get_source());
+    match board.side_to_move() {
+      Color::White => {
+        self.features.push((piece.unwrap().to_index() * 64 + mov.get_dest().to_index(), piece.unwrap().to_index() * 64 + mov.get_source().to_index()))
+      }
+      Color::Black => {
+        self.features.push(((piece.unwrap().to_index() + 6) * 64 + mov.get_dest().to_index(), (piece.unwrap().to_index() + 6) * 64 + mov.get_source().to_index()))
+      }
+    }
+  }
+
+  pub fn pop_move(&mut self) {
+    self.features.pop();
   }
 
   pub fn eval(&mut self, board: &Board) -> i32 {
@@ -49,8 +67,8 @@ impl Net {
           let piece = board.piece_on(s);
 
           match color {
-            Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
-            Some(chess::Color::Black) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::White) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::Black) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
             None => continue,
           }
         }
@@ -61,8 +79,8 @@ impl Net {
           let piece = board.piece_on(s);
 
           match color {
-            Some(chess::Color::White) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
-            Some(chess::Color::Black) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::Black) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
             None => continue,
           }
         }
@@ -73,8 +91,9 @@ impl Net {
   }
 
   fn forward(&mut self, inputs: [f32; 768]) -> i32 {
-    let mut b = self.b1.clone();
+    let mut b = self.b1;
     if self.accumulator == [0.0; 128] {
+      self.features.pop(); // first move doesnt count.
       for w in 0..self.w1.len() {
         b[w] += dot(&inputs, &self.w1[w]);
       }
@@ -82,27 +101,23 @@ impl Net {
       self.board_rep = inputs;
     } else {
       b = self.accumulator;
-      let mut index = 0;
-      for (curr, acc) in inputs.zip(self.board_rep) {
-        if curr == 1.0 && acc == 0.0 {
-          for i in self.w1 {
-            for d in 0..b.len() {
-              b[d] += i[index];
-            }
-          }
-        } else if curr == 0.0 && acc == 1.0 {
-          for i in self.w1 {
-            for d in 0..b.len() {
-              b[d] -= i[index];
-            }
+      for (added, removed) in &self.features {
+        for i in self.w1 {
+          for d in 0..b.len() {
+            b[d] += i[*added];
           }
         }
-        index += 1;
+        for i in self.w1 {
+          for d in 0..b.len() {
+            b[d] -= i[*removed];
+          }
+        }
       }
+      self.accumulator = b;
     }
     self.relu(&mut b);
 
-    let mut c = self.b2.clone();
+    let mut c = self.b2;
     for w in 0..self.w2.len() {
       c[w] += dot(&b, &self.w2[w]);
     }

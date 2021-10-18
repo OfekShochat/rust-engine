@@ -245,12 +245,13 @@ impl SearchWorker {
 
     let mut killers = self.stack.killers[curr_depth as usize];
     let his = self.stack.history;
-    let mut move_picker =
+    let move_picker =
       MovePicker::new(&board, self.lock_tt().get(&board.get_hash()), killers, his);
     let mut best_move = ChessMove::default();
-    while let Some(m) = move_picker.next() {
+    for m in move_picker {
       self.nodes += 1;
       let b = board.make_move_new(m);
+      self.net.apply_move(&board, m);
       let score = -self.search::<Pv, false>(
         b,
         -beta,
@@ -264,6 +265,7 @@ impl SearchWorker {
           },
         curr_depth + 1,
       );
+      self.net.pop_move();
 
       if range_strength < 3 && static_eval - score < 30 {
         range_strength += 1;
