@@ -1,4 +1,4 @@
-use chess::{Board, Color, ChessMove, Piece};
+use chess::{Board, Color, ChessMove};
 use packed_simd::f32x4;
 
 use net::*;
@@ -106,14 +106,11 @@ impl Net {
           for d in 0..b.len() {
             b[d] += i[*added];
           }
-        }
-        for i in self.w1 {
           for d in 0..b.len() {
             b[d] -= i[*removed];
           }
         }
       }
-      self.accumulator = b;
     }
     self.relu(&mut b);
 
