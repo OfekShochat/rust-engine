@@ -1,17 +1,20 @@
 extern crate chess;
+extern crate ctrlc;
 extern crate easy_reader;
 extern crate fastapprox;
 extern crate serde_derive;
 extern crate tch;
 extern crate toml;
-extern crate ctrlc;
 
 use chess::{Board, Color};
+use ctrlc::set_handler;
 use easy_reader::EasyReader;
 use fastapprox::fast::sigmoid;
 use serde_derive::Deserialize;
-use std::io::Read;
 use std::collections::HashMap;
+use std::fs;
+use std::io::Read;
+use std::process::exit;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -20,10 +23,7 @@ use tch::{
   nn::{self, Module, OptimizerConfig},
   Device, Tensor,
 };
-use ctrlc::set_handler;
 use toml::from_str;
-use std::fs;
-use std::process::exit;
 
 const DEADLINE: u64 = 100;
 const SCALE: f32 = 1024.0;
@@ -59,7 +59,8 @@ fn main() {
   set_handler(move || {
     save(&output_path, vs.variables());
     exit(0);
-  }).expect("Error setting Ctrl-C handler.");
+  })
+  .expect("Error setting Ctrl-C handler.");
   for (step, (x, y)) in (&mut data).enumerate() {
     let loss = net.forward(&x).mse_loss(&y, tch::Reduction::Mean);
     opt.backward_step(&loss);
@@ -101,9 +102,23 @@ fn save(output_path: &str, variables: HashMap<String, Tensor>) {
     let name = name.replace(".", "_").to_uppercase();
 
     if input_size != 0 {
-      out += &format!("pub const {}: [[f32; {}]; {}] = {:?};\n", name, input_size, layer_size, Vec::<Vec<f32>>::from(param.detach().contiguous().view([-1, input_size])))
+      out += &format!(
+        "pub const {}: [[f32; {}]; {}] = {:?};\n",
+        name,
+        input_size,
+        layer_size,
+        Vec::<Vec<f32>>::from(param.detach().contiguous().view([-1, input_size]))
+      )
     } else {
-      out += &format!("pub const {}: [f32; {}] = {:?};\n", name, layer_size, Vec::<Vec<f32>>::from(param.detach().contiguous()).into_iter().flatten().collect::<Vec<f32>>())
+      out += &format!(
+        "pub const {}: [f32; {}] = {:?};\n",
+        name,
+        layer_size,
+        Vec::<Vec<f32>>::from(param.detach().contiguous())
+          .into_iter()
+          .flatten()
+          .collect::<Vec<f32>>()
+      )
     }
   }
   fs::write(output_path, out).expect("Couldn't open file when saving.");
@@ -225,7 +240,7 @@ impl Iterator for Data {
     let mut batch = vec![];
     let mut targets = Vec::with_capacity(self.batch_size);
     for _ in 0..self.batch_size {
-      let s = self.recv.recv_timeout(Duration::from_millis(DEADLINE));
+      let s = self.recv.recv();
       if s.is_ok() {
         let s = s.unwrap();
         batch.extend(s.board.iter().cloned());

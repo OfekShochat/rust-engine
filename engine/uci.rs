@@ -52,9 +52,11 @@ impl Uci {
         Limit::depthed(tokens.next().unwrap().parse().unwrap()),
         self.threads,
       ),
-      _ => self
-        .searcher
-        .start(self.position_fen.clone(), Limit::timed(360000), self.threads),
+      _ => self.searcher.start(
+        self.position_fen.clone(),
+        Limit::timed(360000),
+        self.threads,
+      ),
     }
   }
 

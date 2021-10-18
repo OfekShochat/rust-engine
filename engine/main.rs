@@ -5,8 +5,8 @@ extern crate packed_simd;
 mod movepick;
 pub mod net;
 pub mod nn;
-pub mod search_consts;
 mod search;
+pub mod search_consts;
 mod uci;
 
 fn main() {

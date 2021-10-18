@@ -97,21 +97,13 @@ impl Manager {
       let pos = pos.clone();
       thread::spawn(move || {
         let mut s = SearchWorker::new(tt, lim);
-        s.iterative_deepening::<false>(
-          chess::Board::from_str(pos.as_str()).unwrap(),
-          -INF,
-          INF,
-        );
+        s.iterative_deepening::<false>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF);
       });
     }
 
     let tt = Arc::clone(&self.transpositions);
     let mut s = SearchWorker::new(tt, lim);
-    s.iterative_deepening::<true>(
-      chess::Board::from_str(pos.as_str()).unwrap(),
-      -INF,
-      INF,
-    );
+    s.iterative_deepening::<true>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF);
   }
 }
 
@@ -124,14 +116,19 @@ pub struct Stack {
 
 impl Stack {
   pub fn new() -> Stack {
-    Stack { pv: [None; MAX_PLY], killers: [[ChessMove::default(); 2]; MAX_PLY], history: [[[0; 64]; 64]; 2], evals: [0; MAX_PLY], }
+    Stack {
+      pv: [None; MAX_PLY],
+      killers: [[ChessMove::default(); 2]; MAX_PLY],
+      history: [[[0; 64]; 64]; 2],
+      evals: [0; MAX_PLY],
+    }
   }
 
   pub fn get_pv_str(&mut self) -> String {
     let mut out = "".to_string();
     for i in self.pv {
       if i.is_none() {
-        break
+        break;
       }
       out += &(i.unwrap().to_string() + " ");
     }
@@ -214,7 +211,11 @@ impl SearchWorker {
       return self.quiescence(&board, alpha, beta, curr_depth);
     }
 
-    if board.combined().popcnt() > 5 && board.checkers().popcnt() == 0 && Node::DO_NULL && depth >= 4 {
+    if board.combined().popcnt() > 5 &&
+      board.checkers().popcnt() == 0 &&
+      Node::DO_NULL &&
+      depth >= 4
+    {
       let b = board.null_move().unwrap();
       let r = self.search::<NullMove, false>(b, -beta, -beta + 1, depth - 4, curr_depth + 1);
       if r >= beta {
@@ -244,7 +245,8 @@ impl SearchWorker {
 
     let mut killers = self.stack.killers[curr_depth as usize];
     let his = self.stack.history;
-    let mut move_picker = MovePicker::new(&board, self.lock_tt().get(&board.get_hash()), killers, his);
+    let mut move_picker =
+      MovePicker::new(&board, self.lock_tt().get(&board.get_hash()), killers, his);
     let mut best_move = ChessMove::default();
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
@@ -283,10 +285,12 @@ impl SearchWorker {
           killers[0] = m;
           match board.side_to_move() {
             Color::White => {
-              self.stack.history[0][m.get_source().to_index()][m.get_dest().to_index()] = (depth*depth) as i32;
+              self.stack.history[0][m.get_source().to_index()][m.get_dest().to_index()] =
+                (depth * depth) as i32;
             }
             Color::Black => {
-              self.stack.history[1][m.get_source().to_index()][m.get_dest().to_index()] = (depth*depth) as i32;
+              self.stack.history[1][m.get_source().to_index()][m.get_dest().to_index()] =
+                (depth * depth) as i32;
             }
           }
         }

@@ -1,7 +1,7 @@
-use chess::{ChessMove, MoveGen, Piece, Board, ALL_PIECES, EMPTY, Color};
+use chess::{Board, ChessMove, Color, MoveGen, Piece, ALL_PIECES, EMPTY};
 
-use search_consts::LOSING_CAPTURE;
 use search::get_piece_value;
+use search_consts::LOSING_CAPTURE;
 
 use crate::{search::TTEntry, search_consts::INF};
 
@@ -25,30 +25,31 @@ pub struct MovePicker {
 }
 
 impl MovePicker {
-  pub fn new(board: &Board, tt_move: Option<&TTEntry>, killers: [ChessMove; 2], history: [[[i32; 64]; 64]; 2]) -> MovePicker {
+  pub fn new(
+    board: &Board,
+    tt_move: Option<&TTEntry>,
+    killers: [ChessMove; 2],
+    history: [[[i32; 64]; 64]; 2],
+  ) -> MovePicker {
     match tt_move {
-      Some(tt_move) => {
-        MovePicker {
-          moves: MoveGen::new_legal(board),
-          board: *board,
-          tt_move: Some(tt_move.mov),
-          killers,
-          history,
-          gen_stage: GenStage::TTMove,
-          queue: vec![],
-        }
-      }
-      None => {
-        MovePicker {
-          moves: MoveGen::new_legal(board),
-          board: *board,
-          tt_move: None,
-          killers,
-          history,
-          gen_stage: GenStage::TTMove,
-          queue: vec![],
-        }
-      }
+      Some(tt_move) => MovePicker {
+        moves: MoveGen::new_legal(board),
+        board: *board,
+        tt_move: Some(tt_move.mov),
+        killers,
+        history,
+        gen_stage: GenStage::TTMove,
+        queue: vec![],
+      },
+      None => MovePicker {
+        moves: MoveGen::new_legal(board),
+        board: *board,
+        tt_move: None,
+        killers,
+        history,
+        gen_stage: GenStage::TTMove,
+        queue: vec![],
+      },
     }
   }
 }
@@ -107,12 +108,8 @@ impl Iterator for MovePicker {
           }
           if let Some(piece) = m.get_promotion() {
             match piece {
-              Piece::Queen => {
-                self.queue.push((m, INF))
-              }
-              _ => {
-                self.queue.push((m, -INF))
-              }
+              Piece::Queen => self.queue.push((m, INF)),
+              _ => self.queue.push((m, -INF)),
             }
             continue;
           }
@@ -168,7 +165,7 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
     0
   };
 
-  'outer : for i in 1..16 {
+  'outer: for i in 1..16 {
     let board = board.make_move_new(m);
     gains[i] = get_piece_value(board.piece_on(target_square).unwrap()) - gains[i - 1];
     let color = board.side_to_move();
@@ -178,9 +175,9 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
     for p in ALL_PIECES {
       match p {
         Piece::Pawn => {
-          let mut potential = chess::get_pawn_attacks(target_square, !color, blockers)
-            & defenders
-            & board.pieces(Piece::Bishop);
+          let mut potential = chess::get_pawn_attacks(target_square, !color, blockers) &
+            defenders &
+            board.pieces(Piece::Bishop);
           if potential != EMPTY {
             let attacker = potential.next().unwrap();
             m = ChessMove::new(attacker, target_square, None);
@@ -188,9 +185,8 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
           }
         }
         Piece::Knight => {
-          let mut potential = chess::get_knight_moves(target_square)
-            & board.pieces(Piece::Knight)
-            & defenders;
+          let mut potential =
+            chess::get_knight_moves(target_square) & board.pieces(Piece::Knight) & defenders;
           if potential != EMPTY {
             let attacker = potential.next().unwrap();
             m = ChessMove::new(attacker, target_square, None);
@@ -198,9 +194,9 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
           }
         }
         Piece::Bishop => {
-          let mut potential = chess::get_bishop_moves(target_square, blockers)
-            & defenders
-            & board.pieces(Piece::Bishop);
+          let mut potential = chess::get_bishop_moves(target_square, blockers) &
+            defenders &
+            board.pieces(Piece::Bishop);
           if potential != EMPTY {
             let attacker = potential.next().unwrap();
             m = ChessMove::new(attacker, target_square, None);
@@ -208,9 +204,8 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
           }
         }
         Piece::Rook => {
-          let mut potential = chess::get_rook_moves(target_square, blockers)
-            & board.pieces(Piece::Rook)
-            & defenders;
+          let mut potential =
+            chess::get_rook_moves(target_square, blockers) & board.pieces(Piece::Rook) & defenders;
           if potential != EMPTY {
             let attacker = potential.next().unwrap();
             m = ChessMove::new(attacker, target_square, None);
@@ -218,10 +213,10 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
           }
         }
         Piece::Queen => {
-          let mut potential = chess::get_rook_moves(target_square, blockers)
-            & chess::get_bishop_moves(target_square, blockers)
-            & board.pieces(Piece::Queen)
-            & defenders;
+          let mut potential = chess::get_rook_moves(target_square, blockers) &
+            chess::get_bishop_moves(target_square, blockers) &
+            board.pieces(Piece::Queen) &
+            defenders;
           if potential != EMPTY {
             let attacker = potential.next().unwrap();
             m = ChessMove::new(attacker, target_square, None);
@@ -229,9 +224,8 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
           }
         }
         Piece::King => {
-          let mut potential = chess::get_king_moves(target_square)
-            & board.pieces(Piece::King)
-            & defenders;
+          let mut potential =
+            chess::get_king_moves(target_square) & board.pieces(Piece::King) & defenders;
           if potential != EMPTY {
             let attacker = potential.next().unwrap();
             m = ChessMove::new(attacker, target_square, None);
@@ -244,7 +238,7 @@ fn see(board: Board, mut m: ChessMove) -> i32 {
     break;
   }
   for i in (1..index).rev() {
-    gains[i-1] = -(-gains[i - 1]).max(gains[i])
+    gains[i - 1] = -(-gains[i - 1]).max(gains[i])
   }
   gains[0]
 }
