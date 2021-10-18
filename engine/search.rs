@@ -241,6 +241,14 @@ impl SearchWorker {
           killers[0] = killers[1];
           killers[0] = m;
         }
+        self.lock_tt().insert(
+          board.get_hash(),
+          TTEntry {
+            mov: best_move,
+            score: alpha,
+            depth: curr_depth as u8,
+          },
+        );
         return beta;
       }
 
