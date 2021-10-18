@@ -161,8 +161,8 @@ impl Datapoint {
           let piece = board.piece_on(s);
 
           match color {
-            Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
-            Some(chess::Color::Black) => inputs[(piece.unwrap().to_index() + 6) % 12] = 1.0,
+            Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::Black) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
             None => continue,
           }
         }
@@ -173,8 +173,8 @@ impl Datapoint {
           let piece = board.piece_on(s);
 
           match color {
-            Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) % 12] = 1.0,
-            Some(chess::Color::Black) => inputs[piece.unwrap().to_index()] = 1.0,
+            Some(chess::Color::White) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::Black) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
             None => continue,
           }
         }
