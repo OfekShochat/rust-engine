@@ -118,12 +118,13 @@ impl Manager {
 pub struct Stack {
   pv: [Option<ChessMove>; MAX_PLY],
   killers: [[ChessMove; 2]; MAX_PLY],
+  history: [[[i32; 64]; 64]; 2],
   evals: [i32; MAX_PLY],
 }
 
 impl Stack {
   pub fn new() -> Stack {
-    Stack { pv: [None; MAX_PLY], killers: [[ChessMove::default(); 2]; MAX_PLY], evals: [0; MAX_PLY], }
+    Stack { pv: [None; MAX_PLY], killers: [[ChessMove::default(); 2]; MAX_PLY], history: [[[0; 64]; 64]; 2], evals: [0; MAX_PLY], }
   }
 
   pub fn get_pv_str(&mut self) -> String {
@@ -241,9 +242,9 @@ impl SearchWorker {
     let mut reductions = 0;
     let mut range_strength: u8 = 0;
 
-    let moves = MoveGen::new_legal(&board);
     let mut killers = self.stack.killers[curr_depth as usize];
-    let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()), killers);
+    let his = self.stack.history;
+    let mut move_picker = MovePicker::new(&board, self.lock_tt().get(&board.get_hash()), killers, his);
     let mut best_move = ChessMove::default();
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
@@ -280,6 +281,14 @@ impl SearchWorker {
         if board.color_on(m.get_dest()).is_none() {
           killers[0] = killers[1];
           killers[0] = m;
+          match board.side_to_move() {
+            Color::White => {
+              self.stack.history[0][m.get_source().to_index()][m.get_dest().to_index()] = (depth*depth) as i32;
+            }
+            Color::Black => {
+              self.stack.history[1][m.get_source().to_index()][m.get_dest().to_index()] = (depth*depth) as i32;
+            }
+          }
         }
         self.lock_tt().insert(
           board.get_hash(),
@@ -336,7 +345,7 @@ impl SearchWorker {
     moves.set_iterator_mask(*captures);
     for m in moves {
       let futility = stand_pat + 40;
-      let piece_value = self.get_piece_value(board.piece_on(m.get_dest()).unwrap());
+      let piece_value = get_piece_value(board.piece_on(m.get_dest()).unwrap());
       if piece_value + futility <= alpha && board.piece_on(m.get_source()).unwrap() != Piece::Pawn {
         continue;
       }
@@ -375,18 +384,18 @@ impl SearchWorker {
       }
   }
 
-  fn get_piece_value(&self, piece: Piece) -> i32 {
-    match piece {
-      Piece::Bishop => 340,
-      Piece::Knight => 320,
-      Piece::Pawn => 100,
-      Piece::Queen => 900,
-      Piece::Rook => 500,
-      _ => unreachable!(),
-    }
-  }
-
   fn lock_tt(&mut self) -> MutexGuard<'_, HashMap<u64, TTEntry>> {
     self.tt.lock().unwrap()
+  }
+}
+
+pub fn get_piece_value(piece: Piece) -> i32 {
+  match piece {
+    Piece::Bishop => 340,
+    Piece::Knight => 320,
+    Piece::Pawn => 100,
+    Piece::Queen => 900,
+    Piece::Rook => 500,
+    Piece::King => 20000,
   }
 }
