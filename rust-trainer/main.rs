@@ -4,7 +4,7 @@ extern crate fastapprox;
 extern crate serde_derive;
 extern crate tch;
 extern crate toml;
-extern crate graceful;
+extern crate ctrlc;
 
 use chess::{Board, Color};
 use easy_reader::EasyReader;
@@ -20,7 +20,7 @@ use tch::{
   nn::{self, Module, OptimizerConfig},
   Device, Tensor,
 };
-use graceful::SignalGuard;
+use ctrlc::set_handler;
 use toml::from_str;
 use std::fs;
 use std::process::exit;
@@ -55,13 +55,11 @@ fn main() {
     .to_device(Device::cuda_if_available())
     .detach();
 
-  let signal_guard = SignalGuard::new();
   let output_path = config.output_path.clone();
-  signal_guard.at_exit(move |sig| {
-    println!("terminated with signal {}.", sig);
+  set_handler(move || {
     save(&output_path, vs.variables());
     exit(0);
-  });
+  }).expect("Error setting Ctrl-C handler.");
   for (step, (x, y)) in (&mut data).enumerate() {
     let loss = net.forward(&x).mse_loss(&y, tch::Reduction::Mean);
     opt.backward_step(&loss);
@@ -79,9 +77,6 @@ fn main() {
       running_loss = Tensor::of_slice(&[0.0])
         .to_device(Device::cuda_if_available())
         .detach();
-    }
-    if step % 4000 == 3999 {
-      opt.set_lr(1e-3 * 0.98_f64.powi(step as i32 / 3999));
     }
     drop(x);
     drop(y);
