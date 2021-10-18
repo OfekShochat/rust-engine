@@ -42,26 +42,29 @@ impl Net {
 
   pub fn eval(&mut self, board: &Board) -> i32 {
     let mut inputs = [0.0; 768];
-    if board.side_to_move() == Color::White {
-      for s in chess::ALL_SQUARES {
-        let color = board.color_on(s);
-        let piece = board.piece_on(s);
+    match board.side_to_move() {
+      Color::White => {
+        for s in chess::ALL_SQUARES {
+          let color = board.color_on(s);
+          let piece = board.piece_on(s);
 
-        match color {
-          Some(chess::Color::White) => inputs[piece.unwrap().to_index()] = 1.0,
-          Some(chess::Color::Black) => inputs[piece.unwrap().to_index() + 5] = 1.0,
-          None => continue,
+          match color {
+            Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::Black) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
+            None => continue,
+          }
         }
       }
-    } else {
-      for s in chess::ALL_SQUARES {
-        let color = board.color_on(s);
-        let piece = board.piece_on(s);
+      Color::Black => {
+        for s in chess::ALL_SQUARES {
+          let color = board.color_on(s);
+          let piece = board.piece_on(s);
 
-        match color {
-          Some(chess::Color::White) => inputs[(piece.unwrap().to_index() + 6) % 12] = 1.0,
-          Some(chess::Color::Black) => inputs[piece.unwrap().to_index()] = 1.0,
-          None => continue,
+          match color {
+            Some(chess::Color::White) => inputs[piece.unwrap().to_index() * 64 + s.to_index()] = 1.0,
+            Some(chess::Color::Black) => inputs[(piece.unwrap().to_index() + 6) * 64 + s.to_index()] = 1.0,
+            None => continue,
+          }
         }
       }
     }
@@ -75,25 +78,29 @@ impl Net {
       for w in 0..self.w1.len() {
         b[w] += dot(&inputs, &self.w1[w]);
       }
-      self.relu(&mut b);
       self.accumulator = b;
       self.board_rep = inputs;
     } else {
-      let mut accumelator = self.accumulator;
+      b = self.accumulator;
       let mut index = 0;
       for (curr, acc) in inputs.zip(self.board_rep) {
         if curr == 1.0 && acc == 0.0 {
           for i in self.w1 {
-            accumelator[index] += i[index];
+            for d in 0..b.len() {
+              b[d] += i[index];
+            }
           }
         } else if curr == 0.0 && acc == 1.0 {
           for i in self.w1 {
-            accumelator[index] -= i[index];
+            for d in 0..b.len() {
+              b[d] -= i[index];
+            }
           }
         }
         index += 1;
       }
     }
+    self.relu(&mut b);
 
     let mut c = self.b2.clone();
     for w in 0..self.w2.len() {
