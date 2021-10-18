@@ -5,11 +5,11 @@ extern crate packed_simd;
 mod movepick;
 pub mod net;
 pub mod nn;
-pub mod psqt;
+pub mod search_consts;
 mod search;
 mod uci;
 
 fn main() {
-  let mut ucih = uci::Uci::new();
+  let mut ucih = uci::Uci::new(4);
   ucih.main();
 }

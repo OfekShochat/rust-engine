@@ -7,10 +7,38 @@ use chess::{Board, BoardStatus, ChessMove, Color, MoveGen, Piece};
 
 use crate::movepick::MovePicker;
 use crate::nn::Net;
-use crate::psqt::PSQT;
+use search_consts::*;
 
-const INF: i32 = 10000;
-const MAX_PLY: u8 = 100;
+trait SearchType {
+  const DO_NULL: bool;
+  const IS_PV: bool;
+  const IS_ZW: bool;
+}
+
+#[derive(PartialEq, Eq)]
+struct Pv;
+#[derive(PartialEq, Eq)]
+struct Zw;
+#[derive(PartialEq, Eq)]
+struct NullMove;
+
+impl SearchType for Pv {
+  const DO_NULL: bool = false;
+  const IS_PV: bool = true;
+  const IS_ZW: bool = false;
+}
+
+impl SearchType for Zw {
+  const DO_NULL: bool = true;
+  const IS_PV: bool = false;
+  const IS_ZW: bool = true;
+}
+
+impl SearchType for NullMove {
+  const DO_NULL: bool = false;
+  const IS_PV: bool = false;
+  const IS_ZW: bool = true;
+}
 
 #[derive(Clone, Copy)]
 pub struct TTEntry {
@@ -30,7 +58,7 @@ impl Limit {
   pub fn timed(time: u128) -> Limit {
     Limit {
       time,
-      depth: MAX_PLY,
+      depth: MAX_PLY as u8,
       started: Instant::now(),
     }
   }
@@ -59,24 +87,12 @@ pub struct Manager {
 impl Manager {
   pub fn new() -> Manager {
     Manager {
-      transpositions: Arc::new(Mutex::new(HashMap::with_capacity(1000))),
+      transpositions: Arc::new(Mutex::new(HashMap::new())),
     }
   }
 
-  pub fn start(&self, pos: String, lim: Limit) {
-    self.start_others(pos.clone(), lim);
-    let tt = Arc::clone(&self.transpositions);
-    let mut s = SearchWorker::new(tt, lim);
-    s.iterative_deepening::<true>(
-      chess::Board::from_str(pos.as_str()).unwrap(),
-      -INF,
-      INF,
-      MAX_PLY,
-    );
-  }
-
-  fn start_others(&self, pos: String, lim: Limit) {
-    for _ in 0..0 {
+  pub fn start(&self, pos: String, lim: Limit, threads: usize) {
+    for _ in 1..threads {
       let tt = Arc::clone(&self.transpositions);
       let pos = pos.clone();
       thread::spawn(move || {
@@ -85,10 +101,40 @@ impl Manager {
           chess::Board::from_str(pos.as_str()).unwrap(),
           -INF,
           INF,
-          MAX_PLY,
         );
       });
     }
+
+    let tt = Arc::clone(&self.transpositions);
+    let mut s = SearchWorker::new(tt, lim);
+    s.iterative_deepening::<true>(
+      chess::Board::from_str(pos.as_str()).unwrap(),
+      -INF,
+      INF,
+    );
+  }
+}
+
+pub struct Stack {
+  pv: [Option<ChessMove>; MAX_PLY],
+  killers: [[ChessMove; 2]; MAX_PLY],
+  evals: [i32; MAX_PLY],
+}
+
+impl Stack {
+  pub fn new() -> Stack {
+    Stack { pv: [None; MAX_PLY], killers: [[ChessMove::default(); 2]; MAX_PLY], evals: [0; MAX_PLY], }
+  }
+
+  pub fn get_pv_str(&mut self) -> String {
+    let mut out = "".to_string();
+    for i in self.pv {
+      if i.is_none() {
+        break
+      }
+      out += &(i.unwrap().to_string() + " ");
+    }
+    out
   }
 }
 
@@ -96,9 +142,7 @@ pub struct SearchWorker {
   nodes: usize,
   seld_depth: usize,
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
-  killers: [[ChessMove; 2]; MAX_PLY as usize],
-  best_move: ChessMove,
-  temp: ChessMove,
+  stack: Stack,
   lim: Limit,
   net: Net,
 }
@@ -109,9 +153,7 @@ impl SearchWorker {
       nodes: 0,
       seld_depth: 0,
       tt,
-      killers: [[ChessMove::default(); 2]; MAX_PLY as usize],
-      best_move: ChessMove::default(),
-      temp: ChessMove::default(),
+      stack: Stack::new(),
       lim,
       net: Net::from_file(),
     }
@@ -122,14 +164,12 @@ impl SearchWorker {
     board: Board,
     alpha: i32,
     beta: i32,
-    depth: u8,
   ) -> i32 {
     let mut value = 0;
     let start = Instant::now();
-    for d in 1..depth {
+    for d in 1..MAX_PLY {
       let start_depth = Instant::now();
-      value = self.search::<true, false>(board, alpha, beta, d, 0);
-      self.best_move = self.temp;
+      value = self.search::<Pv, true>(board, alpha, beta, d as u8, 0);
       if MAIN {
         println!(
           "info depth {} seldepth {} score cp {} nodes {} nps {} time {} pv {}",
@@ -139,20 +179,20 @@ impl SearchWorker {
           self.nodes,
           (self.nodes as f32 / start_depth.elapsed().as_secs_f32()) as usize,
           start.elapsed().as_millis(),
-          self.best_move,
+          self.stack.get_pv_str(),
         );
       }
-      if self.lim.check(d.into()) {
+      if self.lim.check(d as u8) {
         break;
       }
     }
     if MAIN {
-      println!("bestmove {}", self.best_move);
+      println!("bestmove {}", self.stack.pv[0].unwrap());
     }
     value
   }
 
-  fn search<const ROOT: bool, const IN_NULL: bool>(
+  fn search<Node: SearchType, const ROOT: bool>(
     &mut self,
     board: Board,
     mut alpha: i32,
@@ -173,9 +213,9 @@ impl SearchWorker {
       return self.quiescence(&board, alpha, beta, curr_depth);
     }
 
-    if board.combined().popcnt() > 5 && board.checkers().popcnt() == 0 && !IN_NULL && depth >= 4 {
+    if board.combined().popcnt() > 5 && board.checkers().popcnt() == 0 && Node::DO_NULL && depth >= 4 {
       let b = board.null_move().unwrap();
-      let r = self.search::<false, true>(b, -beta, -beta + 1, depth - 4, curr_depth + 1);
+      let r = self.search::<NullMove, false>(b, -beta, -beta + 1, depth - 4, curr_depth + 1);
       if r >= beta {
         return beta;
       }
@@ -183,12 +223,12 @@ impl SearchWorker {
 
     if depth == 8 {
       let bound = (15 + beta) / 10;
-      if self.search::<false, false>(board, bound - 1, bound, 4, curr_depth + 1) >= bound {
+      if self.search::<Zw, false>(board, bound - 1, bound, 4, curr_depth + 1) >= bound {
         return beta;
       }
 
       let bound = (-15 + alpha) / 10;
-      if self.search::<false, false>(board, bound, bound + 1, 4, curr_depth + 1) <= bound {
+      if self.search::<Zw, false>(board, bound, bound + 1, 4, curr_depth + 1) <= bound {
         return alpha;
       }
     }
@@ -202,13 +242,13 @@ impl SearchWorker {
     let mut range_strength: u8 = 0;
 
     let moves = MoveGen::new_legal(&board);
-    let mut killers = self.killers[curr_depth as usize];
+    let mut killers = self.stack.killers[curr_depth as usize];
     let mut move_picker = MovePicker::new(moves, self.lock_tt().get(&board.get_hash()), killers);
     let mut best_move = ChessMove::default();
     while let Some(m) = move_picker.next() {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      let score = -self.search::<false, false>(
+      let score = -self.search::<Pv, false>(
         b,
         -beta,
         -alpha,
@@ -230,8 +270,8 @@ impl SearchWorker {
       }
 
       if score > alpha {
-        if ROOT {
-          self.temp = m;
+        if Node::IS_PV {
+          self.stack.pv[curr_depth as usize] = Some(m);
         }
         best_move = m;
         alpha = score
@@ -257,7 +297,7 @@ impl SearchWorker {
       }
     }
 
-    self.killers[curr_depth as usize] = killers;
+    self.stack.killers[curr_depth as usize] = killers;
 
     if best_move != ChessMove::default() {
       self.lock_tt().insert(

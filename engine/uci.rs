@@ -12,13 +12,15 @@ const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 pub struct Uci {
   searcher: Manager,
   position_fen: String,
+  threads: usize,
 }
 
 impl Uci {
-  pub fn new() -> Uci {
+  pub fn new(threads: usize) -> Uci {
     Uci {
       searcher: Manager::new(),
       position_fen: STARTPOS.to_string(),
+      threads,
     }
   }
 
@@ -43,14 +45,16 @@ impl Uci {
       Some("time") => self.searcher.start(
         self.position_fen.clone(),
         Limit::timed(tokens.next().unwrap().parse().unwrap()),
+        self.threads,
       ),
       Some("depth") => self.searcher.start(
         self.position_fen.clone(),
         Limit::depthed(tokens.next().unwrap().parse().unwrap()),
+        self.threads,
       ),
       _ => self
         .searcher
-        .start(self.position_fen.clone(), Limit::timed(360000)),
+        .start(self.position_fen.clone(), Limit::timed(360000), self.threads),
     }
   }
 
