@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use chess::{Board, Color, ChessMove};
 use packed_simd::f32x4;
 
@@ -100,7 +98,7 @@ impl Net {
     } else {
       b = self.accumulator;
       for (added, removed) in &self.features {
-        let mut a = self.w1.iter().map(|i| i[*added] - i[*removed]).sum();
+        let a = self.w1.iter().map(|i| i[*added] - i[*removed]).sum();
         let a = f32x4::splat(a);
         let bb = b.chunks_exact(4).map(f32x4::from_slice_unaligned)
           .map(|d| d + a).enumerate();
