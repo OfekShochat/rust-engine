@@ -100,11 +100,18 @@ impl Net {
     } else {
       b = self.accumulator;
       for (added, removed) in &self.features {
+        let mut a = 0.0;
         for i in self.w1 {
-          for d in 0..b.len() {
-            b[d] += i[*added] - i[*removed];
-          }
+          a += i[*added] - i[*removed];
         }
+        let a = f32x4::splat(a);
+        let bb = b.chunks_exact(4).map(f32x4::from_slice_unaligned)
+          .map(|d| d + a).enumerate();
+        let mut out = b;
+        for (i, ii) in bb {
+          ii.write_to_slice_unaligned(&mut out[i*4..i*4+4])
+        }
+        b = out;
       }
     }
     self.relu(&mut b);
