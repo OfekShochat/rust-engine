@@ -100,10 +100,7 @@ impl Net {
     } else {
       b = self.accumulator;
       for (added, removed) in &self.features {
-        let mut a = 0.0;
-        for i in self.w1 {
-          a += i[*added] - i[*removed];
-        }
+        let mut a = self.w1.iter().map(|i| i[*added] - i[*removed]).sum();
         let a = f32x4::splat(a);
         let bb = b.chunks_exact(4).map(f32x4::from_slice_unaligned)
           .map(|d| d + a).enumerate();
@@ -121,13 +118,13 @@ impl Net {
       c[w] += dot(&b, &self.w2[w]);
     }
 
-    unsafe { (*c.get_unchecked(0) * 400.0) as i32 }
+    c[0] as i32
   }
 
   #[inline]
   fn relu(&self, a: &mut [f32]) {
     for i in 0..a.len() {
-      if a[i] > 0.0 {
+      if a[i] < 0.0 {
         a[i] = 0.0
       }
     }

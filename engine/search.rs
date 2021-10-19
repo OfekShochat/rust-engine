@@ -119,6 +119,8 @@ pub struct Stack {
   killers: [[ChessMove; 2]; MAX_PLY],
   history: [[[i32; 64]; 64]; 2],
   evals: [i32; MAX_PLY],
+  fh: usize,
+  fhf: usize,
 }
 
 impl Stack {
@@ -128,6 +130,8 @@ impl Stack {
       killers: [[ChessMove::default(); 2]; MAX_PLY],
       history: [[[0; 64]; 64]; 2],
       evals: [0; MAX_PLY],
+      fh: 0,
+      fhf: 0,
     }
   }
 
@@ -185,9 +189,10 @@ impl SearchWorker {
       value = self.search::<Pv, true>(board, alpha, beta, d as u8, 0);
       if MAIN {
         println!(
-          "info depth {} seldepth {} score cp {} nodes {} nps {} time {} pv {}",
+          "info depth {} seldepth {} fhr {}  score cp {} nodes {} nps {} time {} pv {}",
           d,
           self.seld_depth,
+          self.stack.fhf as f32 / self.stack.fh as f32,
           value,
           self.nodes,
           (self.nodes as f32 / start_depth.elapsed().as_secs_f32()) as usize,
@@ -250,7 +255,7 @@ impl SearchWorker {
       }
     }
 
-    let static_eval = self.evaluate(&board);
+    let static_eval = self.net.eval(&board);
     self.stack.evals[curr_depth as usize] = static_eval;
     // let improving = self.stack.improving();
     if curr_depth < 7 && static_eval - 175 * curr_depth / 2 >= beta {
@@ -265,6 +270,7 @@ impl SearchWorker {
     let move_picker =
       MovePicker::new(&board, self.lock_tt().get(&board.get_hash()), killers, his);
     let mut best_move = ChessMove::default();
+    let mut first = true;
     for m in move_picker {
       self.nodes += 1;
       let b = board.make_move_new(m);
@@ -324,8 +330,15 @@ impl SearchWorker {
         if Node::IS_PV {
           self.stack.pv[curr_depth as usize] = Some(m)
         }
+        if first {
+          self.stack.fh += 1;
+          self.stack.fhf += 1;
+        } else {
+          self.stack.fh += 1
+        }
         return beta;
       }
+      first = false;
 
       if self.nodes % 1024 == 0 && self.lim.check(curr_depth as u8) {
         return self.evaluate(&board);
