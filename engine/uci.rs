@@ -34,6 +34,7 @@ impl Uci {
         Some("position") => self.position(&mut tokens),
         Some("isready") => println!("readyok"),
         Some("uci") => self.uci(),
+        Some("eval") => self.eval(),
         Some("quit") => break,
         _ => eprintln!("invalid command"),
       }
@@ -58,6 +59,11 @@ impl Uci {
         self.threads,
       ),
     }
+  }
+
+  fn eval(&mut self) {
+    let board = Board::from_str(&self.position_fen).unwrap();
+    println!("{}", self.searcher.eval(&board));
   }
 
   fn position(&mut self, tokens: &mut SplitAsciiWhitespace) {

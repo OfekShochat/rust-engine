@@ -105,6 +105,13 @@ impl Manager {
     let mut s = SearchWorker::new(tt, lim);
     s.iterative_deepening::<true>(chess::Board::from_str(pos.as_str()).unwrap(), -INF, INF);
   }
+
+  pub fn eval(&self, board: &Board) -> i32 {
+    let tt = Arc::clone(&self.transpositions);
+    let lim = Limit::depthed(0);
+    let mut s = SearchWorker::new(tt, lim);
+    s.eval(board)
+  }
 }
 
 pub struct Stack {
@@ -134,6 +141,10 @@ impl Stack {
     }
     out
   }
+
+  pub fn improving(&mut self) -> bool {
+    todo!()
+  }
 }
 
 pub struct SearchWorker {
@@ -155,6 +166,10 @@ impl SearchWorker {
       lim,
       net: Net::from_file(),
     }
+  }
+
+  pub fn eval(&mut self, board: &Board) -> i32 {
+    self.net.eval(board)
   }
 
   pub fn iterative_deepening<const MAIN: bool>(
@@ -236,6 +251,8 @@ impl SearchWorker {
     }
 
     let static_eval = self.evaluate(&board);
+    self.stack.evals[curr_depth as usize] = static_eval;
+    // let improving = self.stack.improving();
     if curr_depth < 7 && static_eval - 175 * curr_depth / 2 >= beta {
       return static_eval;
     }
@@ -358,7 +375,9 @@ impl SearchWorker {
 
       self.nodes += 1;
       let b = board.make_move_new(m);
+      self.net.apply_move(&board, m);
       let score = -self.quiescence(&b, -beta, -alpha, curr_depth + 1);
+      self.net.pop_move();
       if score >= beta {
         return beta;
       } else if score > alpha {
