@@ -275,19 +275,35 @@ impl SearchWorker {
       self.nodes += 1;
       let b = board.make_move_new(m);
       self.net.apply_move(&board, m);
-      let score = -self.search::<Pv, false>(
-        b,
-        -beta,
-        -alpha,
-        depth -
-          1 -
-          if depth > reductions {
-            reductions as u8
-          } else {
-            depth - 1
-          },
-        curr_depth + 1,
-      );
+      let score = 
+      if first {
+        -self.search::<Pv, false>(
+          b,
+          -beta,
+          -alpha,
+          depth - 1,
+          curr_depth + 1,
+        )
+      } else {
+        let s = -self.search::<Zw, false>(
+          b,
+          -(alpha + 1),
+          -alpha,
+          depth - 1,
+          curr_depth + 1,
+        );
+        if s > alpha && s < beta {
+          -self.search::<Pv, false>(
+            b,
+            -beta,
+            -alpha,
+            depth - 1,
+            curr_depth + 1,
+          )
+        } else {
+          s
+        }
+      };
       self.net.pop_move();
 
       if range_strength < 3 && static_eval - score < 30 {
@@ -338,11 +354,11 @@ impl SearchWorker {
         }
         return beta;
       }
-      first = false;
 
       if self.nodes % 1024 == 0 && self.lim.check(curr_depth as u8) {
         return self.evaluate(&board);
       }
+      first = false;
     }
 
     self.stack.killers[curr_depth as usize] = killers;
