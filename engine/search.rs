@@ -142,8 +142,8 @@ impl Stack {
     out
   }
 
-  pub fn improving(&mut self) -> bool {
-    todo!()
+  pub fn improving(&mut self, curr_depth: usize) -> bool {
+    self.evals[curr_depth] > self.evals[curr_depth - 2]
   }
 }
 
@@ -321,6 +321,9 @@ impl SearchWorker {
             depth: curr_depth as u8,
           },
         );
+        if Node::IS_PV {
+          self.stack.pv[curr_depth as usize] = Some(m)
+        }
         return beta;
       }
 
