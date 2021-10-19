@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use chess::{Board, Color, ChessMove};
 use packed_simd::f32x4;
 
@@ -21,7 +23,6 @@ pub struct Net {
   b1: [f32; 128],
   b2: [f32; 1],
   accumulator: [f32; 128],
-  board_rep: [f32; 768],
   features: Vec<(usize, usize)>
 }
 
@@ -33,7 +34,6 @@ impl Net {
       b1,
       b2,
       accumulator: [0.0; 128],
-      board_rep: [0.0; 768],
       features: vec![]
     }
   }
@@ -86,7 +86,6 @@ impl Net {
         }
       }
     }
-
     self.forward(inputs)
   }
 
@@ -98,16 +97,12 @@ impl Net {
         b[w] += dot(&inputs, &self.w1[w]);
       }
       self.accumulator = b;
-      self.board_rep = inputs;
     } else {
       b = self.accumulator;
       for (added, removed) in &self.features {
         for i in self.w1 {
           for d in 0..b.len() {
-            b[d] += i[*added];
-          }
-          for d in 0..b.len() {
-            b[d] -= i[*removed];
+            b[d] += i[*added] - i[*removed];
           }
         }
       }
@@ -122,6 +117,7 @@ impl Net {
     unsafe { (*c.get_unchecked(0) * 400.0) as i32 }
   }
 
+  #[inline]
   fn relu(&self, a: &mut [f32]) {
     for i in 0..a.len() {
       if a[i] > 0.0 {
