@@ -7,5 +7,8 @@ version = "0.0.1"
 chess = "3.2.0"
 packed_simd = { version = "0.3.4", package = "packed_simd_2" }
 
+[build-dependencies]
+reqwest = { version = "~0.11.6", features = ["blocking"] }
+
 [profile.release.build-override]
 opt-level = 3
