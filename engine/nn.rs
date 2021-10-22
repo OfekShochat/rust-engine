@@ -46,7 +46,6 @@ impl Nnue {
 
 struct IncrementalLayer<const INPUTS: usize, const OUTPUTS: usize> {
   w: [[f32; OUTPUTS]; INPUTS],
-  b: [f32; OUTPUTS],
   accumulator: [f32; OUTPUTS],
   white: BitBoard,
   black: BitBoard,
@@ -63,7 +62,6 @@ impl <const INPUTS: usize, const OUTPUTS: usize> IncrementalLayer<INPUTS, OUTPUT
   pub fn new(w: [[f32; INPUTS]; OUTPUTS], b: [f32; OUTPUTS]) -> IncrementalLayer<INPUTS, OUTPUTS> {
     IncrementalLayer { 
       w: IncrementalLayer::prepare(w),
-      b,
       accumulator: b,
       white: EMPTY,
       black: EMPTY,
