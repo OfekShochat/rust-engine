@@ -8,7 +8,7 @@ chess = "3.2.0"
 packed_simd = { version = "0.3.4", package = "packed_simd_2" }
 
 [build-dependencies]
-reqwest = { version = "~0.11.6", features = ["blocking"] }
+attohttpc = "0.18.0"
 
 [profile.release.build-override]
 opt-level = 3
