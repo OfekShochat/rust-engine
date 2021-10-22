@@ -6,7 +6,7 @@ use std::{collections::HashMap, time::Instant};
 use chess::{Board, BoardStatus, ChessMove, Color, MoveGen, Piece};
 
 use crate::movepick::MovePicker;
-use crate::nn::Net;
+use crate::nn::Nnue;
 use search_consts::*;
 
 trait SearchType {
@@ -157,7 +157,7 @@ pub struct SearchWorker {
   tt: Arc<Mutex<HashMap<u64, TTEntry>>>,
   stack: Stack,
   lim: Limit,
-  net: Net,
+  net: Nnue,
 }
 
 impl SearchWorker {
@@ -168,7 +168,7 @@ impl SearchWorker {
       tt,
       stack: Stack::new(),
       lim,
-      net: Net::from_file(),
+      net: Nnue::new(),
     }
   }
 
@@ -223,7 +223,7 @@ impl SearchWorker {
       BoardStatus::Stalemate => return 0,
       _ => {}
     }
-    if board.combined().popcnt() < 3 {
+    if board.combined().popcnt() == 2 {
       return 0; // KvK
     }
 
@@ -262,9 +262,6 @@ impl SearchWorker {
       return static_eval;
     }
 
-    let mut reductions = 0;
-    let mut range_strength: u8 = 0;
-
     let mut killers = self.stack.killers[curr_depth as usize];
     let his = self.stack.history;
     let move_picker =
@@ -274,10 +271,9 @@ impl SearchWorker {
     for m in move_picker {
       self.nodes += 1;
       let b = board.make_move_new(m);
-      self.net.apply_move(&board, m);
       let score = 
       if first {
-        -self.search::<Pv, false>(
+        -self.search::<Node, false>(
           b,
           -beta,
           -alpha,
@@ -293,7 +289,7 @@ impl SearchWorker {
           curr_depth + 1,
         );
         if s > alpha && s < beta {
-          -self.search::<Pv, false>(
+          -self.search::<Node, false>(
             b,
             -beta,
             -alpha,
@@ -304,14 +300,6 @@ impl SearchWorker {
           s
         }
       };
-      self.net.pop_move();
-
-      if range_strength < 3 && static_eval - score < 30 {
-        range_strength += 1;
-        if range_strength > 2 {
-          reductions += 1
-        }
-      }
 
       if score > alpha {
         if Node::IS_PV {
@@ -407,9 +395,7 @@ impl SearchWorker {
 
       self.nodes += 1;
       let b = board.make_move_new(m);
-      self.net.apply_move(&board, m);
       let score = -self.quiescence(&b, -beta, -alpha, curr_depth + 1);
-      self.net.pop_move();
       if score >= beta {
         return beta;
       } else if score > alpha {

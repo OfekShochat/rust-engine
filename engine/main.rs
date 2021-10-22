@@ -7,6 +7,7 @@ pub mod net;
 pub mod nn;
 mod search;
 pub mod search_consts;
+pub mod position;
 mod uci;
 
 fn main() {
